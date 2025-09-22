@@ -117,24 +117,26 @@ if st.session_state.player_name:
         # Feedback after submission
         if st.session_state.answered:
             if st.session_state.selected_answer == q["answer"]:
-        st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
+                st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
             else:
-        st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
+                st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-        # Show feedback for 3 seconds
-        elapsed_feedback = time.time() - st.session_state.feedback_time
-        if elapsed_feedback > FEEDBACK_TIME:
-            st.session_state.q_index += 1
-            st.session_state.start_time = None
-            st.session_state.answered = False
-            st.session_state.selected_answer = None
-            st.rerun()
+            # Show feedback for 3 seconds
+            elapsed_feedback = time.time() - st.session_state.feedback_time
+            if elapsed_feedback > FEEDBACK_TIME:
+                st.session_state.q_index += 1
+                st.session_state.start_time = None
+                st.session_state.answered = False
+                st.session_state.selected_answer = None
+                st.rerun()
+            else:
+                st.write(f"➡️ Next question in {FEEDBACK_TIME - int(elapsed_feedback)} sec...")
+                time.sleep(1)
+                st.rerun()
         else:
-            # Keep refreshing during feedback countdown
-            st.write(f"Next question in {FEEDBACK_TIME - int(elapsed_feedback)} sec...")
+            # Auto-refresh every second while waiting for answer
             time.sleep(1)
             st.rerun()
-
 
     # If finished
     else:
