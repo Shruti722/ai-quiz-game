@@ -2,6 +2,23 @@ import streamlit as st
 import random
 import pandas as pd
 import time
+import qrcode
+from io import BytesIO
+
+# -------------------------------
+# Streamlit Cloud URL
+# -------------------------------
+game_url = "https://ai-quiz-game-mfczjiunj8bmmoi8n3wajx.streamlit.app"
+
+# Generate QR code
+qr = qrcode.QRCode(version=1, box_size=8, border=2)
+qr.add_data(game_url)
+qr.make(fit=True)
+img = qr.make_image(fill='black', back_color='white')
+buf = BytesIO()
+img.save(buf)
+st.image(buf, width=200)
+st.write("Scan the QR code to join the game!")
 
 # -------------------------------
 # Question bank
@@ -25,7 +42,7 @@ questions = [
 ]
 
 # -------------------------------
-# Session state setup
+# Session state
 # -------------------------------
 if 'player_name' not in st.session_state:
     st.session_state.player_name = ''
@@ -60,17 +77,16 @@ if st.session_state.player_name:
         # Display options
         answer = st.radio("Choose your answer:", q['options'], key=st.session_state.q_index)
         
-        # Timer placeholder
+        # Timer
         timer_placeholder = st.empty()
-        
         if not st.session_state.answer_selected:
             for t in range(15, 0, -1):
                 timer_placeholder.text(f"Time left: {t} sec")
                 time.sleep(1)
-                st.experimental_rerun()  # rerun to update the timer
+                st.experimental_rerun()  # update the timer in real-time
             st.session_state.answer_selected = True
         
-        # Check answer and move to next question
+        # After timer ends, check answer and move to next
         if st.session_state.answer_selected:
             if answer == q['answer']:
                 st.success("Correct! ✅")
@@ -82,7 +98,7 @@ if st.session_state.player_name:
             st.experimental_rerun()
             
     else:
-        st.subheader(f"Quiz Finished! Your score: {st.session_state.score}/{len(questions)}")
+        st.subheader(f"🎉 Quiz Finished! Your score: {st.session_state.score}/{len(questions)}")
         # Store score in leaderboard
         st.session_state.scores.append({"name": st.session_state.player_name, "score": st.session_state.score})
         st.subheader("🏆 Leaderboard - Top 3")
