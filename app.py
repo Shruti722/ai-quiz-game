@@ -66,12 +66,14 @@ if 'scores' not in st.session_state:
 # -------------------------------
 st.title("AI-Powered Quiz Game 🎮")
 
+# Enter player name
 if not st.session_state.player_name:
     st.session_state.player_name = st.text_input("Enter your first name:")
 
 if st.session_state.player_name:
     st.write(f"Welcome, **{st.session_state.player_name}**! Let's start the quiz.")
 
+    # Check if questions are remaining
     if st.session_state.q_index < len(st.session_state.shuffled_questions):
         q = st.session_state.shuffled_questions[st.session_state.q_index]
         st.write(f"**Question {st.session_state.q_index + 1}: {q['question']}**")
@@ -79,31 +81,32 @@ if st.session_state.player_name:
         # Display options
         st.session_state.selected_answer = st.radio("Choose your answer:", q['options'], index=0)
 
-        # Timer calculation
+        # Timer
         elapsed = int(time.time() - st.session_state.question_start)
         remaining = max(0, 15 - elapsed)
         st.write(f"Time left: {remaining} sec")
 
-        # Auto-submit if timer runs out
+        # Auto-submit when time ends
         if remaining == 0 and not st.session_state.answered:
             st.session_state.answered = True
 
         # Submit button
         if st.button("Submit") or st.session_state.answered:
+            # Check answer
             if st.session_state.selected_answer == q['answer']:
                 st.success("Correct! ✅")
                 st.session_state.score += 1
             else:
                 st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-            # Prepare next question
+            # Move to next question
             st.session_state.q_index += 1
             st.session_state.question_start = time.time()
-            st.session_state.answered = False
             st.session_state.selected_answer = None
-            st.experimental_rerun()  # This is safe here because user interaction just happened
+            st.session_state.answered = False
 
     else:
+        # Quiz finished
         st.subheader(f"🎉 Quiz Finished! Your score: {st.session_state.score}/{len(questions)}")
         # Leaderboard
         st.session_state.scores.append({"name": st.session_state.player_name, "score": st.session_state.score})
