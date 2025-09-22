@@ -126,11 +126,11 @@ if st.session_state.player_name:
                 st.session_state.q_index += 1
                 st.session_state.start_time = None
                 st.session_state.answered = False
-                st.experimental_rerun()
+                st.rerun()
 
         else:
             # Auto-refresh every second while waiting for answer
-            st.experimental_rerun()
+            st.rerun()
 
     # If finished
     else:
