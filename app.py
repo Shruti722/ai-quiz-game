@@ -7,13 +7,19 @@ from io import BytesIO
 from streamlit_autorefresh import st_autorefresh
 
 # -------------------------------
-# Streamlit Cloud URL
+# Constants
 # -------------------------------
-game_url = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
+GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
+POINTS_PER_QUESTION = 5
+TOTAL_POINTS = 5 * POINTS_PER_QUESTION  # 5 questions
+QUESTION_TIME = 15  # seconds for each question
+FEEDBACK_TIME = 3   # seconds to show feedback
 
+# -------------------------------
 # Generate QR code
+# -------------------------------
 qr = qrcode.QRCode(version=1, box_size=8, border=2)
-qr.add_data(game_url)
+qr.add_data(GAME_URL)
 qr.make(fit=True)
 img = qr.make_image(fill='black', back_color='white')
 buf = BytesIO()
@@ -43,7 +49,7 @@ questions = [
 ]
 
 # -------------------------------
-# Session state
+# Session state initialization
 # -------------------------------
 if 'player_name' not in st.session_state:
     st.session_state.player_name = ''
@@ -64,7 +70,9 @@ if 'feedback_time' not in st.session_state:
 if 'scores' not in st.session_state:
     st.session_state.scores = []
 
-# Auto-refresh every second for timer
+# -------------------------------
+# Auto-refresh every second for live timer
+# -------------------------------
 st_autorefresh(interval=1000, key="timer_refresh")
 
 # -------------------------------
@@ -84,13 +92,13 @@ if st.session_state.player_name:
         q = st.session_state.shuffled_questions[st.session_state.q_index]
         st.write(f"**Question {st.session_state.q_index + 1}: {q['question']}**")
 
-        # Display options only if not showing feedback
+        # Show options if not showing feedback
         if not st.session_state.answered:
             st.session_state.selected_answer = st.radio("Choose your answer:", q['options'], index=0)
 
         # Timer
         elapsed = int(time.time() - st.session_state.question_start)
-        remaining = max(0, 15 - elapsed)
+        remaining = max(0, QUESTION_TIME - elapsed)
         if not st.session_state.answered:
             st.write(f"Time left: {remaining} sec")
 
@@ -104,17 +112,18 @@ if st.session_state.player_name:
             st.session_state.answered = True
             st.session_state.feedback_time = time.time()
 
-        # Show feedback for 3 seconds
+        # Show feedback for FEEDBACK_TIME seconds
         if st.session_state.answered:
             if st.session_state.selected_answer == q['answer']:
-                st.success("Correct! ✅")
-                if remaining > 0:
-                    st.session_state.score += 1
+                st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
+                # Award points only once
+                if st.session_state.feedback_time == time.time():  
+                    st.session_state.score += POINTS_PER_QUESTION
             else:
                 st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-            # After 3 seconds, go to next question automatically
-            if time.time() - st.session_state.feedback_time >= 3:
+            # After feedback time, move to next question
+            if time.time() - st.session_state.feedback_time >= FEEDBACK_TIME:
                 st.session_state.q_index += 1
                 st.session_state.question_start = time.time()
                 st.session_state.selected_answer = None
@@ -123,8 +132,19 @@ if st.session_state.player_name:
 
     else:
         # Quiz finished
-        st.subheader(f"🎉 Quiz Finished! Your score: {st.session_state.score}/{len(questions)}")
-        st.session_state.scores.append({"name": st.session_state.player_name, "score": st.session_state.score})
+        st.subheader(f"🎉 Quiz Finished! Your score: {st.session_state.score}/{TOTAL_POINTS}")
+
+        # Save/update player score
+        found = False
+        for rec in st.session_state.scores:
+            if rec['name'] == st.session_state.player_name:
+                rec['score'] = st.session_state.score
+                found = True
+                break
+        if not found:
+            st.session_state.scores.append({"name": st.session_state.player_name, "score": st.session_state.score})
+
+        # Leaderboard - top 3
         st.subheader("🏆 Leaderboard - Top 3")
         df = pd.DataFrame(st.session_state.scores).sort_values(by='score', ascending=False).head(3)
         st.table(df)
