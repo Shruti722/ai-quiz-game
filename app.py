@@ -24,21 +24,21 @@ st.write("Scan the QR code to join the game!")
 # Question bank
 # -------------------------------
 questions = [
-    {"question": "Which of the following best describes structured data?",
-     "options": ["Images", "Tables with rows and columns", "Videos", "Audio"],
-     "answer": "Tables with rows and columns"},
-    {"question": "What is the primary purpose of data visualization?",
-     "options": ["Encrypt data", "Analyze trends and patterns", "Store data", "Delete data"],
-     "answer": "Analyze trends and patterns"},
-    {"question": "What is the main function of an AI agent?",
-     "options": ["Sense, Decide, Act", "Store data", "Only predict numbers", "Encrypt files"],
-     "answer": "Sense, Decide, Act"},
     {"question": "Which of these is an example of an AI agent?",
      "options": ["ChatGPT", "Word Document", "Excel File", "PowerPoint"],
      "answer": "ChatGPT"},
     {"question": "Which feature can AI agents have?",
      "options": ["Learning from environment", "Only remembering static data", "Watching videos", "Printing documents"],
      "answer": "Learning from environment"},
+    {"question": "What is the primary purpose of data visualization?",
+     "options": ["Encrypt data", "Analyze trends and patterns", "Store data", "Delete data"],
+     "answer": "Analyze trends and patterns"},
+    {"question": "Which of the following best describes structured data?",
+     "options": ["Images", "Tables with rows and columns", "Videos", "Audio"],
+     "answer": "Tables with rows and columns"},
+    {"question": "What is the main function of an AI agent?",
+     "options": ["Sense, Decide, Act", "Store data", "Only predict numbers", "Encrypt files"],
+     "answer": "Sense, Decide, Act"},
 ]
 
 # -------------------------------
@@ -52,12 +52,6 @@ if 'q_index' not in st.session_state:
     st.session_state.q_index = 0
 if 'shuffled_questions' not in st.session_state:
     st.session_state.shuffled_questions = random.sample(questions, len(questions))
-if 'selected_answer' not in st.session_state:
-    st.session_state.selected_answer = None
-if 'question_start' not in st.session_state:
-    st.session_state.question_start = time.time()
-if 'answered' not in st.session_state:
-    st.session_state.answered = False
 if 'scores' not in st.session_state:
     st.session_state.scores = []
 
@@ -66,47 +60,45 @@ if 'scores' not in st.session_state:
 # -------------------------------
 st.title("AI-Powered Quiz Game 🎮")
 
-# Enter player name
 if not st.session_state.player_name:
     st.session_state.player_name = st.text_input("Enter your first name:")
 
 if st.session_state.player_name:
     st.write(f"Welcome, **{st.session_state.player_name}**! Let's start the quiz.")
 
-    # Check if questions are remaining
     if st.session_state.q_index < len(st.session_state.shuffled_questions):
         q = st.session_state.shuffled_questions[st.session_state.q_index]
         st.write(f"**Question {st.session_state.q_index + 1}: {q['question']}**")
 
-        # Display options
-        st.session_state.selected_answer = st.radio("Choose your answer:", q['options'], index=0)
+        # Options
+        selected = st.radio("Choose your answer:", q['options'], index=0, key=st.session_state.q_index)
 
-        # Timer
-        elapsed = int(time.time() - st.session_state.question_start)
-        remaining = max(0, 15 - elapsed)
-        st.write(f"Time left: {remaining} sec")
+        # Timer placeholder
+        timer_placeholder = st.empty()
+        feedback_placeholder = st.empty()
 
-        # Auto-submit when time ends
-        if remaining == 0 and not st.session_state.answered:
-            st.session_state.answered = True
+        # Countdown loop
+        start_time = time.time()
+        answered = False
+        while time.time() - start_time < 15:
+            remaining = 15 - int(time.time() - start_time)
+            timer_placeholder.text(f"Time left: {remaining} sec")
+            time.sleep(1)
 
-        # Submit button
-        if st.button("Submit") or st.session_state.answered:
-            # Check answer
-            if st.session_state.selected_answer == q['answer']:
-                st.success("Correct! ✅")
-                st.session_state.score += 1
-            else:
-                st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
+        # Time is up, check answer
+        if selected == q['answer']:
+            feedback_placeholder.success("Correct! ✅")
+            st.session_state.score += 1
+        else:
+            feedback_placeholder.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-            # Move to next question
-            st.session_state.q_index += 1
-            st.session_state.question_start = time.time()
-            st.session_state.selected_answer = None
-            st.session_state.answered = False
+        time.sleep(2)  # Pause to show feedback
+
+        # Move to next question
+        st.session_state.q_index += 1
+        st.experimental_rerun()  # safe because user interaction already occurred
 
     else:
-        # Quiz finished
         st.subheader(f"🎉 Quiz Finished! Your score: {st.session_state.score}/{len(questions)}")
         # Leaderboard
         st.session_state.scores.append({"name": st.session_state.player_name, "score": st.session_state.score})
