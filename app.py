@@ -4,6 +4,7 @@ import pandas as pd
 import time
 import qrcode
 from io import BytesIO
+from streamlit_autorefresh import st_autorefresh
 
 # -------------------------------
 # Streamlit Cloud URL
@@ -60,11 +61,15 @@ if 'scores' not in st.session_state:
     st.session_state.scores = []
 
 # -------------------------------
+# Auto-refresh every second for timer
+# -------------------------------
+st_autorefresh(interval=1000, key="timer_refresh")
+
+# -------------------------------
 # Game UI
 # -------------------------------
 st.title("AI-Powered Quiz Game 🎮")
 
-# Enter player name
 if not st.session_state.player_name:
     st.session_state.player_name = st.text_input("Enter your first name:")
 
@@ -74,46 +79,32 @@ if st.session_state.player_name:
     if st.session_state.q_index < len(st.session_state.shuffled_questions):
         q = st.session_state.shuffled_questions[st.session_state.q_index]
         st.write(f"**Question {st.session_state.q_index + 1}: {q['question']}**")
-        
+
         # Display options
         answer = st.radio("Choose your answer:", q['options'], key=st.session_state.q_index)
-        
-        # Timer display
-        timer_placeholder = st.empty()
-        timer_placeholder.write(f"Time left: {st.session_state.timer} sec")
-        
-        # Countdown logic
-        if 'last_tick' not in st.session_state:
-            st.session_state.last_tick = time.time()
-        
-        # Update timer every rerun (Streamlit reruns when user interacts)
-        now = time.time()
-        elapsed = int(now - st.session_state.last_tick)
-        if elapsed >= 1:
-            st.session_state.timer -= elapsed
-            st.session_state.last_tick = now
-            if st.session_state.timer <= 0:
-                st.session_state.answer_selected = True
-            st.experimental_rerun()
-        
-        # Submit button or timer end
+
+        # Timer countdown
+        st.write(f"Time left: {st.session_state.timer} sec")
+
+        if st.session_state.timer > 0:
+            st.session_state.timer -= 1
+        else:
+            st.session_state.answer_selected = True
+
+        # Submit or timer ends
         if st.button("Submit") or st.session_state.answer_selected:
             if answer == q['answer']:
                 st.success("Correct! ✅")
                 st.session_state.score += 1
             else:
                 st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
-            
-            # Reset for next question
+            # Prepare next question
             st.session_state.q_index += 1
-            st.session_state.answer_selected = False
             st.session_state.timer = 15
-            st.session_state.last_tick = time.time()
-            st.experimental_rerun()
-            
+            st.session_state.answer_selected = False
+
     else:
         st.subheader(f"🎉 Quiz Finished! Your score: {st.session_state.score}/{len(questions)}")
-        # Leaderboard
         st.session_state.scores.append({"name": st.session_state.player_name, "score": st.session_state.score})
         st.subheader("🏆 Leaderboard - Top 3")
         df = pd.DataFrame(st.session_state.scores).sort_values(by='score', ascending=False).head(3)
