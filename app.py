@@ -54,6 +54,10 @@ if 'shuffled_questions' not in st.session_state:
     st.session_state.shuffled_questions = random.sample(questions, len(questions))
 if 'selected_answer' not in st.session_state:
     st.session_state.selected_answer = None
+if 'question_start' not in st.session_state:
+    st.session_state.question_start = time.time()
+if 'answered' not in st.session_state:
+    st.session_state.answered = False
 if 'scores' not in st.session_state:
     st.session_state.scores = []
 
@@ -62,7 +66,6 @@ if 'scores' not in st.session_state:
 # -------------------------------
 st.title("AI-Powered Quiz Game 🎮")
 
-# Enter player name
 if not st.session_state.player_name:
     st.session_state.player_name = st.text_input("Enter your first name:")
 
@@ -72,33 +75,34 @@ if st.session_state.player_name:
     if st.session_state.q_index < len(st.session_state.shuffled_questions):
         q = st.session_state.shuffled_questions[st.session_state.q_index]
         st.write(f"**Question {st.session_state.q_index + 1}: {q['question']}**")
-        
+
         # Display options
         st.session_state.selected_answer = st.radio("Choose your answer:", q['options'], index=0)
-        
-        # Timer
-        timer_placeholder = st.empty()
-        if 'start_time' not in st.session_state:
-            st.session_state.start_time = time.time()
-        
-        elapsed = int(time.time() - st.session_state.start_time)
-        remaining = 15 - elapsed
-        if remaining > 0:
-            timer_placeholder.text(f"Time left: {remaining} sec")
-        else:
-            # Time is up, check answer
+
+        # Timer calculation
+        elapsed = int(time.time() - st.session_state.question_start)
+        remaining = max(0, 15 - elapsed)
+        st.write(f"Time left: {remaining} sec")
+
+        # Auto-submit if timer runs out
+        if remaining == 0 and not st.session_state.answered:
+            st.session_state.answered = True
+
+        # Submit button
+        if st.button("Submit") or st.session_state.answered:
             if st.session_state.selected_answer == q['answer']:
                 st.success("Correct! ✅")
                 st.session_state.score += 1
             else:
                 st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
-            
-            # Reset for next question
+
+            # Prepare next question
             st.session_state.q_index += 1
-            st.session_state.start_time = time.time()
+            st.session_state.question_start = time.time()
+            st.session_state.answered = False
             st.session_state.selected_answer = None
-            st.experimental_rerun()
-    
+            st.experimental_rerun()  # This is safe here because user interaction just happened
+
     else:
         st.subheader(f"🎉 Quiz Finished! Your score: {st.session_state.score}/{len(questions)}")
         # Leaderboard
