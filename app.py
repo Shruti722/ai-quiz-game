@@ -41,7 +41,7 @@ st.title("AI-Powered Quiz Game 🎮")
 # -------------------------------
 # Streamlit Cloud public URL
 # -------------------------------
-game_url = "https://ai-quiz-game-mfczjiunj8bmmoi8n3wajx.streamlit.app"
+game_url = "ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
 
 # Generate QR code
 qr = qrcode.QRCode(version=1, box_size=8, border=2)
