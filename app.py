@@ -38,9 +38,11 @@ if 'scores' not in st.session_state:
 # -------------------------------
 st.title("AI-Powered Quiz Game 🎮")
 
+# Streamlit Cloud public URL
+game_url = "https://ai-quiz-game-mfczjiunj8bmmoi8n3wajx.streamlit.app"
+
 # Generate QR code
 qr = qrcode.QRCode(version=1, box_size=8, border=2)
-game_url = "http://localhost:8501"  # Change if deploying
 qr.add_data(game_url)
 qr.make(fit=True)
 img = qr.make_image(fill='black', back_color='white')
