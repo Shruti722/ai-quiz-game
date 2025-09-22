@@ -8,7 +8,7 @@ from io import BytesIO
 # -------------------------------
 # Streamlit Cloud URL
 # -------------------------------
-game_url = "ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
+game_url = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/"
 
 # Generate QR code
 qr = qrcode.QRCode(version=1, box_size=8, border=2)
