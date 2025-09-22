@@ -34,11 +34,13 @@ if 'scores' not in st.session_state:
     st.session_state.scores = []
 
 # -------------------------------
-# QR Code for game access
+# Game title
 # -------------------------------
 st.title("AI-Powered Quiz Game 🎮")
 
+# -------------------------------
 # Streamlit Cloud public URL
+# -------------------------------
 game_url = "https://ai-quiz-game-mfczjiunj8bmmoi8n3wajx.streamlit.app"
 
 # Generate QR code
