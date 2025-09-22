@@ -58,8 +58,8 @@ if 'question_start' not in st.session_state:
     st.session_state.question_start = time.time()
 if 'answered' not in st.session_state:
     st.session_state.answered = False
-if 'show_feedback' not in st.session_state:
-    st.session_state.show_feedback = False
+if 'feedback_time' not in st.session_state:
+    st.session_state.feedback_time = 0
 if 'scores' not in st.session_state:
     st.session_state.scores = []
 
@@ -80,45 +80,46 @@ if st.session_state.player_name:
         q = st.session_state.shuffled_questions[st.session_state.q_index]
         st.write(f"**Question {st.session_state.q_index + 1}: {q['question']}**")
 
-        # Display options
-        if not st.session_state.show_feedback:
+        # Display options only if not showing feedback
+        if not st.session_state.answered:
             st.session_state.selected_answer = st.radio("Choose your answer:", q['options'], index=0)
 
         # Timer
         elapsed = int(time.time() - st.session_state.question_start)
         remaining = max(0, 15 - elapsed)
-        if not st.session_state.show_feedback:
+        if not st.session_state.answered:
             st.write(f"Time left: {remaining} sec")
 
-        # Auto-submit if timer runs out
+        # Auto-submit if timer ends
         if remaining == 0 and not st.session_state.answered:
             st.session_state.answered = True
+            st.session_state.feedback_time = time.time()
 
         # Submit button
-        if (st.button("Submit") and not st.session_state.show_feedback) or st.session_state.answered:
-            # Show feedback
-            st.session_state.show_feedback = True
+        if st.button("Submit") and not st.session_state.answered:
+            st.session_state.answered = True
+            st.session_state.feedback_time = time.time()
+
+        # Show feedback for 3 seconds
+        if st.session_state.answered:
             if st.session_state.selected_answer == q['answer']:
                 st.success("Correct! ✅")
-                st.session_state.score += 1
+                if remaining > 0:
+                    st.session_state.score += 1
             else:
                 st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-            # Wait 3 seconds to show feedback
-            time.sleep(3)
-
-            # Move to next question
-            st.session_state.q_index += 1
-            st.session_state.question_start = time.time()
-            st.session_state.selected_answer = None
-            st.session_state.answered = False
-            st.session_state.show_feedback = False
-            st.experimental_rerun()
+            # After 3 seconds, go to next question automatically
+            if time.time() - st.session_state.feedback_time >= 3:
+                st.session_state.q_index += 1
+                st.session_state.question_start = time.time()
+                st.session_state.selected_answer = None
+                st.session_state.answered = False
+                st.session_state.feedback_time = 0
 
     else:
         # Quiz finished
         st.subheader(f"🎉 Quiz Finished! Your score: {st.session_state.score}/{len(questions)}")
-        # Leaderboard
         st.session_state.scores.append({"name": st.session_state.player_name, "score": st.session_state.score})
         st.subheader("🏆 Leaderboard - Top 3")
         df = pd.DataFrame(st.session_state.scores).sort_values(by='score', ascending=False).head(3)
