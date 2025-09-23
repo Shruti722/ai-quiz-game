@@ -1,5 +1,8 @@
 {
-  "started": false,
-  "current_q": 0,
-  "players": {}
+    "started": false,
+    "current_q": 0,
+    "players": {
+        "Alice": 10,
+        "Bob": 5
+    }
 }
