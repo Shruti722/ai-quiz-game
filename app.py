@@ -118,12 +118,6 @@ if mode == "Player":
 
     if "player_name" not in st.session_state:
         st.session_state.player_name = ""
-    if "selected_answer" not in st.session_state:
-        st.session_state.selected_answer = None
-    if "answered" not in st.session_state:
-        st.session_state.answered = False
-    if "start_time" not in st.session_state:
-        st.session_state.start_time = None
 
     if not st.session_state.player_name:
         st.session_state.player_name = st.text_input("Enter your first name:")
@@ -133,16 +127,29 @@ if mode == "Player":
 
     st.write(f"Welcome, **{st.session_state.player_name}**!")
 
-    # Reload state each run
+    # -------------------------------
+    # Auto-refresh to detect host start
+    # -------------------------------
     state = load_state()
-
-    # Wait for host
     if not state["game_started"]:
         st.warning("⏳ Waiting for host to start the game...")
+        st.experimental_rerun()  # force refresh every run
         st.stop()
 
-    # Game over
-    if state["game_over"]:
+    # -------------------------------
+    # Initialize session state for question
+    # -------------------------------
+    if "start_time" not in st.session_state or st.session_state.start_time is None:
+        st.session_state.start_time = time.time()
+    if "answered" not in st.session_state:
+        st.session_state.answered = False
+    if "selected_answer" not in st.session_state:
+        st.session_state.selected_answer = None
+
+    # -------------------------------
+    # Game Over Check
+    # -------------------------------
+    if state.get("game_over", False):
         st.success("🎉 Game Over! Thank you for playing.")
         if state['scores']:
             df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False)
@@ -151,15 +158,11 @@ if mode == "Player":
             st.table(df[["Rank", "name", "score"]])
         st.stop()
 
-    # Get current question
+    # -------------------------------
+    # Display Current Question
+    # -------------------------------
     q_index = state["current_question"]
     q = questions[q_index]
-
-    # Initialize start_time for first display of question
-    if st.session_state.start_time is None or st.session_state.answered:
-        st.session_state.start_time = time.time()
-        st.session_state.answered = False
-        st.session_state.selected_answer = None
 
     elapsed = int(time.time() - st.session_state.start_time)
     remaining = max(0, QUESTION_TIME - elapsed)
@@ -173,7 +176,7 @@ if mode == "Player":
     )
     st.write(f"⏳ Time left: {remaining} sec")
 
-    # Submit button
+    # Submit answer
     if st.button("Submit") and not st.session_state.answered:
         st.session_state.answered = True
 
@@ -200,7 +203,7 @@ if mode == "Player":
         else:
             st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-    # Move to next question after 15 seconds
+    # Move to next question after timer ends
     if elapsed >= QUESTION_TIME:
         state = load_state()
         if q_index < len(questions) - 1:
@@ -209,8 +212,8 @@ if mode == "Player":
             state["game_over"] = True
         save_state(state)
 
-        # Reset for next question
+        # Reset session for next question
+        st.session_state.start_time = time.time()
         st.session_state.selected_answer = None
         st.session_state.answered = False
-        st.session_state.start_time = time.time()
         st.experimental_rerun()
