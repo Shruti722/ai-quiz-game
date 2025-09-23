@@ -6,6 +6,23 @@ import qrcode
 import json
 from io import BytesIO
 
+# Host screen
+st.title("🎮 AI-Powered Quiz Game - Host Screen")
+
+game_url = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=player"
+
+# Generate QR code
+qr = qrcode.QRCode(version=1, box_size=8, border=2)
+qr.add_data(game_url)
+qr.make(fit=True)
+img = qr.make_image(fill='black', back_color='white')
+buf = BytesIO()
+img.save(buf)
+st.image(buf, width=200)
+st.write("📱 Ask players to scan this QR code to join!")
+st.write(f"Or share this link: {game_url}")
+
+
 STATE_FILE = "state.json"
 QUESTION_TIME = 15
 FEEDBACK_TIME = 3
