@@ -54,7 +54,7 @@ role = query_params.get("role", ["host"])[0]  # default host
 if role == "host":
     st.title("🎮 AI-Powered Quiz Game - Host Screen")
 
-    game_url = "http://localhost:8501/?role=player"  # change for deployment
+    game_url = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=player"  # change for deployment
     qr = qrcode.QRCode(version=1, box_size=8, border=2)
     qr.add_data(game_url)
     qr.make(fit=True)
