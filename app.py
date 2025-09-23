@@ -40,15 +40,30 @@ questions = [
 game_url = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=player"
 
 # -------------------------------
-# Role detection (host or player)
+# Role detection
 # -------------------------------
 query_params = st.query_params
+role = query_params.get("role", ["host"])[0]  # default = host
 
-# If "role" is not present in URL, default to host
-if "role" in query_params:
-    role = query_params["role"][0]
-else:
-    role = "host"
+# -------------------------------
+# Initialize session state safely
+# -------------------------------
+if "game_started" not in st.session_state:
+    st.session_state.game_started = False
+
+if role == "player":
+    for key in [
+        "player_name", "score", "q_index", "shuffled_questions",
+        "answered", "start_time", "feedback_time", "selected_answer",
+        "scores"
+    ]:
+        if key not in st.session_state:
+            if key == "shuffled_questions":
+                st.session_state[key] = random.sample(questions, len(questions))
+            elif key in ["score", "q_index"]:
+                st.session_state[key] = 0
+            else:
+                st.session_state[key] = None
 
 # -------------------------------
 # Host Screen
@@ -66,8 +81,6 @@ if role == "host":
     st.image(buf, width=200)
     st.write(f"📱 Ask players to scan this QR code to join or share this link: {game_url}")
 
-    if 'game_started' not in st.session_state:
-        st.session_state.game_started = False
     if st.button("Start Game"):
         st.session_state.game_started = True
         st.success("✅ Game started! Players should now see questions.")
@@ -77,25 +90,6 @@ if role == "host":
 # -------------------------------
 elif role == "player":
     st.title("🎮 AI-Powered Quiz Game")
-    
-    if 'player_name' not in st.session_state:
-        st.session_state.player_name = ''
-    if 'score' not in st.session_state:
-        st.session_state.score = 0
-    if 'q_index' not in st.session_state:
-        st.session_state.q_index = 0
-    if 'shuffled_questions' not in st.session_state:
-        st.session_state.shuffled_questions = random.sample(questions, len(questions))
-    if 'answered' not in st.session_state:
-        st.session_state.answered = False
-    if 'start_time' not in st.session_state:
-        st.session_state.start_time = None
-    if 'feedback_time' not in st.session_state:
-        st.session_state.feedback_time = None
-    if 'selected_answer' not in st.session_state:
-        st.session_state.selected_answer = None
-    if 'scores' not in st.session_state:
-        st.session_state.scores = []
 
     # Player enters name
     if not st.session_state.player_name:
@@ -104,7 +98,7 @@ elif role == "player":
         st.write(f"Welcome, **{st.session_state.player_name}**! Let's start the quiz.")
 
     # Check if host started
-    if not st.session_state.get('game_started', False):
+    if not st.session_state.game_started:
         st.info("⏳ Waiting for host to start the game...")
     else:
         # Quiz questions
@@ -117,7 +111,7 @@ elif role == "player":
 
             elapsed = int(time.time() - st.session_state.start_time)
             remaining = max(0, QUESTION_TIME - elapsed)
-            
+
             st.write(f"**Question {st.session_state.q_index + 1}: {q['question']}**")
             st.session_state.selected_answer = st.radio(
                 "Choose your answer:", q["options"], key=f"q{st.session_state.q_index}"
