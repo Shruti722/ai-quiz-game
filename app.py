@@ -228,7 +228,7 @@ if mode == "Host":
     st.write(f"Players joined: {len(state['scores'])}")
 
     if not state["game_started"]:
-        if st.button("Start Game with AI Agent Questions"):
+        if st.button("Start Game"):
             # show spinner while generating
             with st.spinner("Generating questions with AI..."):
                 questions = generate_ai_questions()
