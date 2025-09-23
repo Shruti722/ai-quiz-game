@@ -2,5 +2,6 @@
   "started": false,
   "current_q": 0,
   "players": {},
-  "questions": []
+  "questions": [],
+  "question_start": null
 }
