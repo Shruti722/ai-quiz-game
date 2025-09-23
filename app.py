@@ -1,12 +1,11 @@
 import streamlit as st
-import random
 import pandas as pd
+import random
 import time
 import qrcode
 from io import BytesIO
 import json
 import os
-from streamlit_autorefresh import st_autorefresh
 
 STATE_FILE = "state.json"
 GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
@@ -15,12 +14,7 @@ GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
 # Initialize state.json if not exists
 # -------------------------------
 if not os.path.exists(STATE_FILE):
-    state = {
-        "game_started": False,
-        "current_question": 0,
-        "scores": [],
-        "game_over": False
-    }
+    state = {"game_started": False, "current_question": 0, "scores": [], "game_over": False}
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
 
@@ -55,14 +49,9 @@ QUESTION_TIME = 15
 POINTS_PER_QUESTION = 5
 
 # -------------------------------
-# Auto-refresh every second
-# -------------------------------
-st_autorefresh(interval=1000, limit=None, key="quiz_autorefresh")
-
-# -------------------------------
 # App Mode
 # -------------------------------
-mode = st.sidebar.selectbox("Select mode:", ["Player", "Host"])
+mode = st.sidebar.selectbox("Select mode:", ["Host", "Player"])
 
 # -------------------------------
 # Host Screen
@@ -94,17 +83,12 @@ if mode == "Host":
 
     # Restart Game
     if st.button("Restart Game"):
-        state = {
-            "game_started": False,
-            "current_question": 0,
-            "scores": [],
-            "game_over": False
-        }
+        state = {"game_started": False, "current_question": 0, "scores": [], "game_over": False}
         with open(STATE_FILE, "w") as f:
             json.dump(state, f)
         st.success("Game has been reset! Players can rejoin.")
 
-    # Show game progress or final leaderboard
+    # Show leaderboard or progress
     if state["game_started"]:
         if state["game_over"]:
             st.success("🎉 Game Over! Final Leaderboard:")
@@ -119,9 +103,6 @@ if mode == "Host":
                 df.insert(0, "Rank", range(1, len(df)+1))
                 st.subheader("🏆 Leaderboard - Top 3")
                 st.table(df[["Rank", "name", "score"]])
-            else:
-                st.subheader("🏆 Leaderboard - Top 3")
-                st.write("No players have joined yet.")
 
 # -------------------------------
 # Player Screen
@@ -131,6 +112,12 @@ if mode == "Player":
 
     if "player_name" not in st.session_state:
         st.session_state.player_name = ""
+    if "selected_answer" not in st.session_state:
+        st.session_state.selected_answer = None
+    if "answered" not in st.session_state:
+        st.session_state.answered = False
+    if "start_time" not in st.session_state:
+        st.session_state.start_time = None
 
     if not st.session_state.player_name:
         st.session_state.player_name = st.text_input("Enter your first name:")
@@ -138,7 +125,6 @@ if mode == "Player":
     else:
         st.write(f"Welcome, **{st.session_state.player_name}**!")
 
-        # Wait for host
         if not state["game_started"]:
             st.warning("Waiting for host to start the game...")
             st.stop()
@@ -153,22 +139,9 @@ if mode == "Player":
             st.stop()
 
         q_index = state["current_question"]
-
-        if q_index >= len(questions):
-            # Mark game over
-            state["game_over"] = True
-            with open(STATE_FILE, "w") as f:
-                json.dump(state, f)
-            st.experimental_rerun()
-
         q = questions[q_index]
 
-        # Session state
-        if "selected_answer" not in st.session_state:
-            st.session_state.selected_answer = None
-        if "answered" not in st.session_state:
-            st.session_state.answered = False
-        if "start_time" not in st.session_state:
+        if st.session_state.start_time is None:
             st.session_state.start_time = time.time()
 
         elapsed = int(time.time() - st.session_state.start_time)
@@ -178,12 +151,11 @@ if mode == "Player":
         st.session_state.selected_answer = st.radio(
             "Choose your answer:",
             q["options"],
-            index=0,
             key=f"q{q_index}"
         )
         st.write(f"⏳ Time left: {remaining} sec")
 
-        # Submit button with immediate feedback
+        # Submit button
         if st.button("Submit") and not st.session_state.answered:
             st.session_state.answered = True
 
@@ -206,14 +178,14 @@ if mode == "Player":
             with open(STATE_FILE, "w") as f:
                 json.dump(state, f)
 
-        # Show feedback for entire timer
+        # Show feedback for full 15 sec
         if st.session_state.answered:
             if st.session_state.selected_answer == q["answer"]:
                 st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
             else:
                 st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-        # Move to next question after timer ends
+        # Move to next question after timer
         if elapsed >= QUESTION_TIME:
             with open(STATE_FILE, "r") as f:
                 state = json.load(f)
@@ -226,7 +198,7 @@ if mode == "Player":
             with open(STATE_FILE, "w") as f:
                 json.dump(state, f)
 
-            # Reset session state
+            # Reset session state for next question
             st.session_state.selected_answer = None
             st.session_state.answered = False
             st.session_state.start_time = time.time()
