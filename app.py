@@ -8,7 +8,7 @@ import google.generativeai as genai
 from streamlit_autorefresh import st_autorefresh
 
 STATE_FILE = "state.json"
-GAME_URL = st.secrets.get("GAME_URL", "https://your-streamlit-app-url")  # replace with your app URL
+GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=Player"  # replace with your app URL
 QUESTION_TIME = 15
 POINTS_PER_QUESTION = 5
 
