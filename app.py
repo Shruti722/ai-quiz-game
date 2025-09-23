@@ -181,7 +181,6 @@ if mode == "Player":
         # Submit button with immediate feedback
         if st.button("Submit") and not st.session_state.answered:
             st.session_state.answered = True
-            st.session_state.feedback_time = time.time()
 
             # Update score
             with open(STATE_FILE, "r") as f:
@@ -202,14 +201,15 @@ if mode == "Player":
             with open(STATE_FILE, "w") as f:
                 json.dump(state, f)
 
-            # Immediate feedback
-            if correct:
+        # Feedback display for remaining time
+        if st.session_state.answered:
+            if st.session_state.selected_answer == q["answer"]:
                 st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
             else:
                 st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-        # Move to next question after full 15 seconds
-        if remaining == 0:
+        # Move to next question only after QUESTION_TIME
+        if elapsed >= QUESTION_TIME:
             if state["current_question"] < len(questions) - 1:
                 state["current_question"] += 1
                 with open(STATE_FILE, "w") as f:
@@ -217,4 +217,9 @@ if mode == "Player":
                 st.session_state.selected_answer = None
                 st.session_state.answered = False
                 st.session_state.start_time = time.time()
+                st.experimental_rerun()
+            else:
+                # Game finished
+                st.session_state.selected_answer = None
+                st.session_state.answered = False
                 st.experimental_rerun()
