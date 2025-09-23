@@ -13,9 +13,15 @@ POINTS_PER_QUESTION = 5
 def load_state():
     try:
         with open(STATE_FILE, "r") as f:
-            return json.load(f)
+            state = json.load(f)
+        state.setdefault("started", False)
+        state.setdefault("current_q", 0)
+        state.setdefault("players", {})
+        state.setdefault("questions", [])
+        state.setdefault("question_start", None)
+        return state
     except:
-        return {"started": False, "current_q": 0, "players": {}, "questions": []}
+        return {"started": False, "current_q": 0, "players": {}, "questions": [], "question_start": None}
 
 def save_state(state):
     with open(STATE_FILE, "w") as f:
@@ -24,9 +30,7 @@ def save_state(state):
 # -------------------------------
 # Player UI
 # -------------------------------
-st.title("🎮 Player Screen")
-
-# Load shared state
+st.title("🎮 AI-Powered Quiz Game - Player")
 state = load_state()
 
 # Player name input
@@ -40,7 +44,7 @@ if not st.session_state.player_name:
         if name not in state["players"]:
             state["players"][name] = 0
         save_state(state)
-        st.success(f"Welcome {name}! Waiting for host to start the game...")
+        st.success(f"Welcome {name}! Waiting for host to start...")
     st.stop()
 
 player = st.session_state.player_name
@@ -49,77 +53,52 @@ if not state["started"]:
     st.info("⏳ Waiting for host to start the game...")
     st.stop()
 
-# Initialize player session state
-if "q_index" not in st.session_state:
-    st.session_state.q_index = state["current_q"]
-if "start_time" not in st.session_state:
-    st.session_state.start_time = None
+q_index = state["current_q"]
+questions = state["questions"]
+q = questions[q_index]
+
 if "answered" not in st.session_state:
     st.session_state.answered = False
 if "selected_answer" not in st.session_state:
     st.session_state.selected_answer = None
 
-questions = state["questions"]
+# Timer
+elapsed = int(time.time() - state["question_start"])
+remaining = max(0, QUESTION_TIME - elapsed)
 
-# -------------------------------
-# Quiz Loop
-# -------------------------------
-if st.session_state.q_index < len(questions):
-    q = questions[st.session_state.q_index]
+st.subheader(f"❓ Question {q_index + 1}: {q['question']}")
+st.session_state.selected_answer = st.radio("Choose your answer:", q["options"], key=f"q{q_index}")
+st.write(f"⏳ Time left: {remaining} sec")
 
-    # Start question timer
-    if st.session_state.start_time is None:
-        st.session_state.start_time = time.time()
+if (st.button("Submit") or remaining == 0) and not st.session_state.answered:
+    st.session_state.answered = True
+    st.session_state.feedback_time = time.time()
+    if st.session_state.selected_answer == q["answer"]:
+        state["players"][player] += POINTS_PER_QUESTION
+    save_state(state)
 
-    elapsed = int(time.time() - st.session_state.start_time)
-    remaining = max(0, QUESTION_TIME - elapsed)
-
-    st.subheader(f"❓ Question {st.session_state.q_index + 1}: {q['question']}")
-    st.session_state.selected_answer = st.radio(
-        "Choose your answer:",
-        q["options"],
-        key=f"q{st.session_state.q_index}"
-    )
-    st.write(f"⏳ Time left: {remaining} sec")
-
-    # Submit answer or timeout
-    if (st.button("Submit") or remaining == 0) and not st.session_state.answered:
-        st.session_state.answered = True
-        st.session_state.feedback_time = time.time()
-        if st.session_state.selected_answer == q["answer"]:
-            state["players"][player] += POINTS_PER_QUESTION
-        save_state(state)
-
-    # Show feedback
-    if st.session_state.answered:
-        if st.session_state.selected_answer == q["answer"]:
-            st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
-        else:
-            st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
-
-        elapsed_feedback = time.time() - st.session_state.feedback_time
-        if elapsed_feedback > FEEDBACK_TIME:
-            st.session_state.q_index += 1
-            st.session_state.start_time = None
-            st.session_state.answered = False
-            st.session_state.selected_answer = None
-            state["current_q"] = st.session_state.q_index
-            save_state(state)
-            st.rerun()
-        else:
-            st.write(f"➡️ Next question in {FEEDBACK_TIME - int(elapsed_feedback)} sec...")
-            time.sleep(1)
-            st.rerun()
+# Feedback
+if st.session_state.answered:
+    if st.session_state.selected_answer == q["answer"]:
+        st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
     else:
+        st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
+
+    elapsed_feedback = time.time() - st.session_state.feedback_time
+    if elapsed_feedback > FEEDBACK_TIME:
+        st.session_state.answered = False
+        st.session_state.selected_answer = None
+        st.rerun()
+    else:
+        st.write(f"➡️ Next question in {FEEDBACK_TIME - int(elapsed_feedback)} sec...")
         time.sleep(1)
         st.rerun()
-
-# -------------------------------
-# Quiz finished
-# -------------------------------
 else:
-    st.success("🎉 Quiz Finished!")
-    st.subheader(f"Your score: {state['players'][player]}")
-    st.subheader("🏆 Leaderboard - Top 3")
+    time.sleep(1)
+    st.rerun()
+
+# Leaderboard
+st.subheader("🏆 Leaderboard - Top 3")
+if state["players"]:
     df = pd.DataFrame(list(state["players"].items()), columns=["Name","Score"]).sort_values(by="Score", ascending=False).head(3)
     st.table(df)
