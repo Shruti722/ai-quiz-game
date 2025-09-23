@@ -93,12 +93,17 @@ if mode == "Host":
     else:
         st.write(f"Game in progress... Current Question: {state['current_question'] + 1}/{len(questions)}")
         
-        # Leaderboard with 1-based rank
-        df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False).head(3)
-        if not df.empty:
-            df.insert(0, "Rank", range(1, len(df) + 1))
+        # Leaderboard display with KeyError fix
+        if state['scores']:
+            df = pd.DataFrame(state['scores'])
+            if "score" in df.columns and "name" in df.columns:
+                df = df.sort_values(by="score", ascending=False).head(3)
+                df.insert(0, "Rank", range(1, len(df) + 1))
+                st.subheader("🏆 Leaderboard - Top 3")
+                st.table(df[["Rank", "name", "score"]])
+        else:
             st.subheader("🏆 Leaderboard - Top 3")
-            st.table(df[["Rank", "name", "score"]])
+            st.write("No players have joined yet.")
 
     # Restart Game
     if st.button("Restart Game"):
@@ -134,11 +139,16 @@ if mode == "Player":
         q_index = state["current_question"]
         if q_index >= len(questions):
             st.success("Game finished!")
-            df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False).head(3)
-            if not df.empty:
-                df.insert(0, "Rank", range(1, len(df) + 1))
+            if state['scores']:
+                df = pd.DataFrame(state['scores'])
+                if "score" in df.columns and "name" in df.columns:
+                    df = df.sort_values(by="score", ascending=False).head(3)
+                    df.insert(0, "Rank", range(1, len(df) + 1))
+                    st.subheader("🏆 Leaderboard - Top 3")
+                    st.table(df[["Rank", "name", "score"]])
+            else:
                 st.subheader("🏆 Leaderboard - Top 3")
-                st.table(df[["Rank", "name", "score"]])
+                st.write("No scores yet.")
             st.stop()
 
         q = questions[q_index]
