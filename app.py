@@ -1,10 +1,11 @@
 import streamlit as st
-import random
-import pandas as pd
-import time
 import qrcode
 import json
+import random
+import time
 from io import BytesIO
+import pandas as pd
+import os
 
 STATE_FILE = "state.json"
 QUESTION_TIME = 15
@@ -36,17 +37,23 @@ questions = [
 # Helpers
 # -------------------------------
 def load_state():
+    if not os.path.exists(STATE_FILE):
+        state = {"started": False, "current_q": 0, "players": {}, "questions": [], "question_start": None}
+        with open(STATE_FILE, "w") as f:
+            json.dump(state, f)
+        return state
     try:
         with open(STATE_FILE, "r") as f:
             state = json.load(f)
+        # Ensure keys exist
         state.setdefault("started", False)
         state.setdefault("current_q", 0)
         state.setdefault("players", {})
-        state.setdefault("questions", random.sample(questions, len(questions)))
+        state.setdefault("questions", [])
         state.setdefault("question_start", None)
         return state
     except:
-        return {"started": False, "current_q": 0, "players": {}, "questions": random.sample(questions, len(questions)), "question_start": None}
+        return {"started": False, "current_q": 0, "players": {}, "questions": [], "question_start": None}
 
 def save_state(state):
     with open(STATE_FILE, "w") as f:
@@ -56,13 +63,13 @@ def save_state(state):
 # Role detection
 # -------------------------------
 query_params = st.query_params
-role = query_params.get("role", ["host"])[0]  # default host
+role = query_params.get("role", ["host"])[0]
 
 # -------------------------------
 # Host screen
 # -------------------------------
 if role == "host":
-    st.title("🎮 AI-Powered Quiz Game - Host Screen")
+    st.title("🎮 AI-Powered Quiz Game - Host")
 
     # QR Code
     game_url = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=player"
@@ -85,17 +92,16 @@ if role == "host":
             state["questions"] = random.sample(questions, len(questions))
             state["question_start"] = time.time()
             save_state(state)
-            st.success("✅ Game started! Players will now see questions.")
+            st.success("✅ Game started!")
         st.stop()
 
-    # Show current question
+    # Show current question and countdown
     q_index = state["current_q"]
     q = state["questions"][q_index]
-    st.subheader(f"Current Question: {q_index + 1}/{len(state['questions'])}")
+    st.subheader(f"Question {q_index + 1}/{len(state['questions'])}")
     st.write(f"❓ {q['question']}")
     st.write("Options: " + ", ".join(q["options"]))
 
-    # Timer countdown
     elapsed = int(time.time() - state["question_start"])
     remaining = max(0, QUESTION_TIME - elapsed)
     st.write(f"⏳ Time left: {remaining} sec")
