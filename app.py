@@ -3,6 +3,7 @@ import qrcode
 import base64
 from io import BytesIO
 import json
+import time
 
 # -------------------------------
 # Config
@@ -36,11 +37,11 @@ def generate_qr(url: str):
 # -------------------------------
 st.title("🎮 Host Screen")
 
-# Load current state
+# Load state
 state = load_state()
 
 # QR code pointing to PLAYER page
-qr_img = generate_qr(game_url + "/player")   # ✅ directs players to /player
+qr_img = generate_qr(game_url + "/player")
 st.image(qr_img, caption="Scan to join the game")
 
 # Show joined players
@@ -53,7 +54,8 @@ else:
 
 # Start game button
 if st.button("🚀 Start Game"):
-    state = {"started": True, "current_q": 0, "players": state["players"]}
+    state["started"] = True
+    state["current_q"] = 0
     save_state(state)
     st.success("Game started! Players should now see the first question.")
 
