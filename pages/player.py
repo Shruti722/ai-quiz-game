@@ -1,13 +1,10 @@
 import streamlit as st
 import json
 import time
-import random
 
 STATE_FILE = "state.json"
 
-# -------------------------------
 # Helpers
-# -------------------------------
 def load_state():
     try:
         with open(STATE_FILE, "r") as f:
@@ -19,9 +16,7 @@ def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
 
-# -------------------------------
 # Question bank
-# -------------------------------
 questions = [
     {"q": "Which of the following best describes structured data?",
      "options": ["Images", "Tables with rows and columns", "Videos", "Audio"],
@@ -45,23 +40,22 @@ FEEDBACK_TIME = 3
 POINTS_PER_QUESTION = 5
 
 # -------------------------------
-# Player UI
+# Player screen
 # -------------------------------
 st.title("🎮 Player Screen")
 
-# Load state
 state = load_state()
 
-# Player name input
+# Player name
 if "player_name" not in st.session_state:
     name = st.text_input("Enter your name:")
     if st.button("Join Game") and name:
         st.session_state.player_name = name
-        state["players"][name] = 0
-        save_state(state)
-        st.success(f"Welcome {name}! Waiting for host to start...")
+        if name not in state["players"]:
+            state["players"][name] = 0
+            save_state(state)
+        st.success(f"Welcome {name}! Waiting for host...")
 
-# Already joined
 if "player_name" in st.session_state:
     player = st.session_state.player_name
 
@@ -74,7 +68,7 @@ if "player_name" in st.session_state:
     if q_index < len(questions):
         q = questions[q_index]
 
-        # Timer
+        # Timer start
         if "start_time" not in st.session_state or st.session_state.start_time is None:
             st.session_state.start_time = time.time()
             st.session_state.answered = False
@@ -86,7 +80,6 @@ if "player_name" in st.session_state:
         st.session_state.selected_answer = st.radio("Choose your answer:", q["options"], key=f"q{q_index}")
         st.write(f"⏳ Time left: {remaining} sec")
 
-        # Submit or timeout
         if (st.button("Submit") or remaining == 0) and not st.session_state.answered:
             st.session_state.answered = True
             st.session_state.feedback_time = time.time()
@@ -94,7 +87,7 @@ if "player_name" in st.session_state:
                 state["players"][player] += POINTS_PER_QUESTION
             save_state(state)
 
-        # Show feedback
+        # Feedback display
         if st.session_state.answered:
             if st.session_state.selected_answer == q["answer"]:
                 st.success(f"✅ Correct! (+{POINTS_PER_QUESTION} points)")
@@ -102,22 +95,17 @@ if "player_name" in st.session_state:
                 st.error(f"❌ Wrong! Correct answer: {q['answer']}")
 
             elapsed_feedback = time.time() - st.session_state.feedback_time
+            st.write(f"➡️ Next question in {max(0, FEEDBACK_TIME - int(elapsed_feedback))} sec")
             if elapsed_feedback > FEEDBACK_TIME:
                 st.session_state.start_time = None
                 st.session_state.answered = False
                 st.session_state.selected_answer = None
                 st.rerun()
             else:
-                st.write(f"➡️ Next question in {FEEDBACK_TIME - int(elapsed_feedback)} sec...")
-                time.sleep(1)
-                st.rerun()
+                st.experimental_rerun()
         else:
             # Auto-refresh timer
-            time.sleep(1)
-            st.rerun()
+            st.experimental_rerun()
 
     else:
         st.success("🎉 Quiz Finished! Check leaderboard on host screen.")
-        st.subheader("🏆 Leaderboard - Top 3")
-        df = pd.DataFrame(state["players"].items(), columns=["Name", "Score"]).sort_values(by="Score", ascending=False).head(3)
-        st.table(df)
