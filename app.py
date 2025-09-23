@@ -1,8 +1,7 @@
 import streamlit as st
 import json
 import os
-import time
-import random
+import qrcode
 import google.generativeai as genai
 
 STATE_FILE = "state.json"
@@ -41,7 +40,7 @@ def get_ai_questions():
         response = model.generate_content(prompt)
         questions = json.loads(response.text)
         return questions
-    except Exception as e:
+    except Exception:
         # Fallback hardcoded questions
         return [
             {"question": "Which of the following best describes structured data?",
@@ -78,6 +77,20 @@ if role == "Host":
             state["current_q"] = 0
             save_state(state)
             st.success("Game started! Players can now see the first question.")
+
+        # Show QR Code so players can join
+        st.subheader("📱 Share with Players")
+        player_url = st.experimental_get_query_params()
+        if "url" in player_url:
+            player_link = player_url["url"][0]
+        else:
+            player_link = st.request.url.replace("role=Host", "role=Player")
+
+        qr = qrcode.make(player_link)
+        qr.save("qr.png")
+        st.image("qr.png", caption="Scan to join as Player", width=200)
+        st.write(f"Or open directly: {player_link}")
+
     else:
         st.subheader("📊 Game in Progress")
         st.write(f"Current Question: {state['current_q']+1} / {len(state['questions'])}")
