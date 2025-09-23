@@ -51,7 +51,6 @@ questions = [
 ]
 
 QUESTION_TIME = 15
-FEEDBACK_TIME = 3
 POINTS_PER_QUESTION = 5
 
 # -------------------------------
@@ -179,9 +178,10 @@ if mode == "Player":
         )
         st.write(f"⏳ Time left: {remaining} sec")
 
-        # Submit button
-        if (st.button("Submit") or remaining == 0) and not st.session_state.answered:
+        # Submit button with immediate feedback
+        if st.button("Submit") and not st.session_state.answered:
             st.session_state.answered = True
+            st.session_state.feedback_time = time.time()
 
             # Update score
             with open(STATE_FILE, "r") as f:
@@ -202,9 +202,8 @@ if mode == "Player":
             with open(STATE_FILE, "w") as f:
                 json.dump(state, f)
 
-        # Feedback display in last 3 seconds
-        if st.session_state.answered and remaining <= FEEDBACK_TIME:
-            if st.session_state.selected_answer == q["answer"]:
+            # Immediate feedback
+            if correct:
                 st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
             else:
                 st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
