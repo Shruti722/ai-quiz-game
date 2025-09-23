@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import time
+import random
 
 STATE_FILE = "state.json"
 
@@ -22,61 +23,101 @@ def save_state(state):
 # Question bank
 # -------------------------------
 questions = [
-    {"q": "What is 2 + 2?", "options": ["3", "4", "5"], "answer": "4"},
-    {"q": "What is the capital of France?", "options": ["Paris", "Rome", "Berlin"], "answer": "Paris"},
-    {"q": "What is the main function of an AI agent?", "options": ["Sense, Decide, Act", "Store data", "Encrypt files"], "answer": "Sense, Decide, Act"}
+    {"q": "Which of the following best describes structured data?",
+     "options": ["Images", "Tables with rows and columns", "Videos", "Audio"],
+     "answer": "Tables with rows and columns"},
+    {"q": "What is the primary purpose of data visualization?",
+     "options": ["Encrypt data", "Analyze trends and patterns", "Store data", "Delete data"],
+     "answer": "Analyze trends and patterns"},
+    {"q": "What is the main function of an AI agent?",
+     "options": ["Sense, Decide, Act", "Store data", "Only predict numbers", "Encrypt files"],
+     "answer": "Sense, Decide, Act"},
+    {"q": "Which of these is an example of an AI agent?",
+     "options": ["ChatGPT", "Word Document", "Excel File", "PowerPoint"],
+     "answer": "ChatGPT"},
+    {"q": "Which feature can AI agents have?",
+     "options": ["Learning from environment", "Only remembering static data", "Watching videos", "Printing documents"],
+     "answer": "Learning from environment"},
 ]
+
+QUESTION_TIME = 15
+FEEDBACK_TIME = 3
+POINTS_PER_QUESTION = 5
 
 # -------------------------------
 # Player UI
 # -------------------------------
 st.title("🎮 Player Screen")
 
+# Load state
+state = load_state()
+
 # Player name input
 if "player_name" not in st.session_state:
     name = st.text_input("Enter your name:")
     if st.button("Join Game") and name:
-        state = load_state()
-        if name not in state["players"]:
-            state["players"][name] = 0
+        st.session_state.player_name = name
+        state["players"][name] = 0
         save_state(state)
-        st.session_state["player_name"] = name
         st.success(f"Welcome {name}! Waiting for host to start...")
 
-# If already joined
+# Already joined
 if "player_name" in st.session_state:
-    player = st.session_state["player_name"]
-    state = load_state()
-    
+    player = st.session_state.player_name
+
     if not state["started"]:
         st.info("⏳ Waiting for host to start the game...")
         st.stop()
-    
+
     # Current question
     q_index = state["current_q"]
-    
     if q_index < len(questions):
-        question = questions[q_index]
-        st.subheader(f"❓ {question['q']}")
-        
-        # Answer input
-        if "answered" not in st.session_state:
-            st.session_state["answered"] = False
-        
-        if not st.session_state["answered"]:
-            choice = st.radio("Choose your answer:", question["options"])
-            if st.button("Submit Answer"):
-                st.session_state["answered"] = True
-                if choice == question["answer"]:
-                    state["players"][player] += 5
-                    st.success("✅ Correct! +5 points")
-                else:
-                    st.error(f"❌ Wrong! Correct answer: {question['answer']}")
-                save_state(state)
-                time.sleep(3)  # feedback delay
-                state["current_q"] += 1
-                save_state(state)
-                st.session_state["answered"] = False
-                st.experimental_rerun()
+        q = questions[q_index]
+
+        # Timer
+        if "start_time" not in st.session_state or st.session_state.start_time is None:
+            st.session_state.start_time = time.time()
+            st.session_state.answered = False
+
+        elapsed = int(time.time() - st.session_state.start_time)
+        remaining = max(0, QUESTION_TIME - elapsed)
+
+        st.subheader(f"❓ Question {q_index + 1}: {q['q']}")
+        st.session_state.selected_answer = st.radio("Choose your answer:", q["options"], key=f"q{q_index}")
+        st.write(f"⏳ Time left: {remaining} sec")
+
+        # Submit or timeout
+        if (st.button("Submit") or remaining == 0) and not st.session_state.answered:
+            st.session_state.answered = True
+            st.session_state.feedback_time = time.time()
+            if st.session_state.selected_answer == q["answer"]:
+                state["players"][player] += POINTS_PER_QUESTION
+            save_state(state)
+
+        # Show feedback
+        if st.session_state.answered:
+            if st.session_state.selected_answer == q["answer"]:
+                st.success(f"✅ Correct! (+{POINTS_PER_QUESTION} points)")
+            else:
+                st.error(f"❌ Wrong! Correct answer: {q['answer']}")
+
+            elapsed_feedback = time.time() - st.session_state.feedback_time
+            if elapsed_feedback > FEEDBACK_TIME:
+                st.session_state.start_time = None
+                st.session_state.answered = False
+                st.session_state.selected_answer = None
+                st.rerun()
+            else:
+                st.write(f"➡️ Next question in {FEEDBACK_TIME - int(elapsed_feedback)} sec...")
+                time.sleep(1)
+                st.rerun()
+        else:
+            # Auto-refresh timer
+            time.sleep(1)
+            st.rerun()
+
     else:
-        st.success("🎉 Game Over! Check leaderboard on host screen.")
+        st.success("🎉 Quiz Finished! Check leaderboard on host screen.")
+        st.subheader("🏆 Leaderboard - Top 3")
+        df = pd.DataFrame(state["players"].items(), columns=["Name", "Score"]).sort_values(by="Score", ascending=False).head(3)
+        st.table(df)
