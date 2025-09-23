@@ -5,13 +5,17 @@ import json
 import time
 from io import BytesIO
 
+# -------------------------------
+# Streamlit Cloud URL
+# -------------------------------
+game_url = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
+
 STATE_FILE = "state.json"
 QUESTIONS_FILE = "questions.json"
 
-# Load questions
-with open(QUESTIONS_FILE, "r") as f:
-    QUESTIONS = json.load(f)
-
+# -------------------------------
+# Utility functions
+# -------------------------------
 def load_state():
     try:
         with open(STATE_FILE, "r") as f:
@@ -30,14 +34,19 @@ def generate_qr(url):
     b64 = base64.b64encode(buf.getvalue()).decode()
     return f"data:image/png;base64,{b64}"
 
+# -------------------------------
+# Host Page
+# -------------------------------
 st.title("🎮 AI-Powered Quiz Game - Host")
 
 state = load_state()
 
 # QR Code for players to join
 st.subheader("📱 Players join by scanning this QR code:")
-qr_img = generate_qr("http://localhost:8502")  # change if deploying
-st.image(qr_img)
+qr_img = generate_qr(game_url + "/player")   # direct players to player page
+st.image(qr_img, caption="Scan to join the quiz!")
+
+st.markdown(f"Or click here: [Join Game]({game_url}/player)")
 
 # Start game button
 if st.button("🚀 Start Game"):
@@ -47,9 +56,9 @@ if st.button("🚀 Start Game"):
     save_state(state)
     st.success("Game started!")
 
-# Move to next question manually (admin control if needed)
+# Move to next question (admin control)
 if st.button("➡️ Next Question"):
-    if state["started"] and state["current_q"] < len(QUESTIONS) - 1:
+    if state["started"] and state["current_q"] < len(open(QUESTIONS_FILE).readlines()) - 1:
         state["current_q"] += 1
         save_state(state)
 
