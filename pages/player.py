@@ -1,6 +1,8 @@
 import streamlit as st
-import time
 import json
+import time
+import os
+import pandas as pd
 
 STATE_FILE = "state.json"
 QUESTION_TIME = 15
@@ -11,6 +13,11 @@ POINTS_PER_QUESTION = 5
 # Helpers
 # -------------------------------
 def load_state():
+    if not os.path.exists(STATE_FILE):
+        state = {"started": False, "current_q": 0, "players": {}, "questions": [], "question_start": None}
+        with open(STATE_FILE, "w") as f:
+            json.dump(state, f)
+        return state
     try:
         with open(STATE_FILE, "r") as f:
             state = json.load(f)
@@ -33,7 +40,7 @@ def save_state(state):
 st.title("🎮 AI-Powered Quiz Game - Player")
 state = load_state()
 
-# Player name input
+# Player name
 if "player_name" not in st.session_state:
     st.session_state.player_name = ""
 
@@ -44,7 +51,7 @@ if not st.session_state.player_name:
         if name not in state["players"]:
             state["players"][name] = 0
         save_state(state)
-        st.success(f"Welcome {name}! Waiting for host to start...")
+        st.success(f"Welcome {name}! Waiting for host...")
     st.stop()
 
 player = st.session_state.player_name
@@ -66,10 +73,11 @@ if "selected_answer" not in st.session_state:
 elapsed = int(time.time() - state["question_start"])
 remaining = max(0, QUESTION_TIME - elapsed)
 
-st.subheader(f"❓ Question {q_index + 1}: {q['question']}")
+st.subheader(f"Question {q_index + 1}: {q['question']}")
 st.session_state.selected_answer = st.radio("Choose your answer:", q["options"], key=f"q{q_index}")
 st.write(f"⏳ Time left: {remaining} sec")
 
+# Submit or timeout
 if (st.button("Submit") or remaining == 0) and not st.session_state.answered:
     st.session_state.answered = True
     st.session_state.feedback_time = time.time()
