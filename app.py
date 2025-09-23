@@ -43,7 +43,7 @@ state = load_state()
 
 # QR Code for players to join
 st.subheader("📱 Players join by scanning this QR code:")
-qr_img = generate_qr(game_url + "/player")   # direct players to player page
+qr_img = generate_qr(game_url + "/player")   # now points to player page
 st.image(qr_img, caption="Scan to join the quiz!")
 
 st.markdown(f"Or click here: [Join Game]({game_url}/player)")
