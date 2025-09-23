@@ -42,8 +42,9 @@ questions = [
 # -------------------------------
 # Role detection (host or player)
 # -------------------------------
-query_params = st.experimental_get_query_params()
-role = query_params.get("role", ["host"])[0]  # default = host
+query_params = st.query_params
+role = query_params.get("role", "host")  # default = host
+
 
 # -------------------------------
 # Host Screen
