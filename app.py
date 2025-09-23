@@ -90,20 +90,6 @@ if mode == "Host":
             with open(STATE_FILE, "w") as f:
                 json.dump(state, f)
             st.success("Game started!")
-    else:
-        st.write(f"Game in progress... Current Question: {state['current_question'] + 1}/{len(questions)}")
-        
-        # Leaderboard display with KeyError fix
-        if state['scores']:
-            df = pd.DataFrame(state['scores'])
-            if "score" in df.columns and "name" in df.columns:
-                df = df.sort_values(by="score", ascending=False).head(3)
-                df.insert(0, "Rank", range(1, len(df) + 1))
-                st.subheader("🏆 Leaderboard - Top 3")
-                st.table(df[["Rank", "name", "score"]])
-        else:
-            st.subheader("🏆 Leaderboard - Top 3")
-            st.write("No players have joined yet.")
 
     # Restart Game
     if st.button("Restart Game"):
@@ -115,6 +101,29 @@ if mode == "Host":
         with open(STATE_FILE, "w") as f:
             json.dump(state, f)
         st.success("Game has been reset! Players can rejoin.")
+
+    # Game in progress
+    if state["game_started"]:
+        if state["current_question"] >= len(questions):
+            st.success("🎉 Game Over! Final Leaderboard:")
+            if state['scores']:
+                df = pd.DataFrame(state['scores'])
+                df = df.sort_values(by="score", ascending=False)
+                df.insert(0, "Rank", range(1, len(df) + 1))
+                st.table(df[["Rank", "name", "score"]])
+            else:
+                st.write("No scores yet.")
+        else:
+            st.write(f"Game in progress... Current Question: {state['current_question'] + 1}/{len(questions)}")
+            if state['scores']:
+                df = pd.DataFrame(state['scores'])
+                df = df.sort_values(by="score", ascending=False).head(3)
+                df.insert(0, "Rank", range(1, len(df) + 1))
+                st.subheader("🏆 Leaderboard - Top 3")
+                st.table(df[["Rank", "name", "score"]])
+            else:
+                st.subheader("🏆 Leaderboard - Top 3")
+                st.write("No players have joined yet.")
 
 # -------------------------------
 # Player Screen
@@ -138,16 +147,14 @@ if mode == "Player":
 
         q_index = state["current_question"]
         if q_index >= len(questions):
-            st.success("Game finished!")
+            st.success("🎉 Game Over! Thank you for playing.")
             if state['scores']:
                 df = pd.DataFrame(state['scores'])
-                if "score" in df.columns and "name" in df.columns:
-                    df = df.sort_values(by="score", ascending=False).head(3)
-                    df.insert(0, "Rank", range(1, len(df) + 1))
-                    st.subheader("🏆 Leaderboard - Top 3")
-                    st.table(df[["Rank", "name", "score"]])
+                df = df.sort_values(by="score", ascending=False)
+                df.insert(0, "Rank", range(1, len(df) + 1))
+                st.subheader("🏆 Final Leaderboard")
+                st.table(df[["Rank", "name", "score"]])
             else:
-                st.subheader("🏆 Leaderboard - Top 3")
                 st.write("No scores yet.")
             st.stop()
 
@@ -159,8 +166,6 @@ if mode == "Player":
             st.session_state.answered = False
         if "start_time" not in st.session_state:
             st.session_state.start_time = time.time()
-        if "feedback_time" not in st.session_state:
-            st.session_state.feedback_time = None
 
         elapsed = int(time.time() - st.session_state.start_time)
         remaining = max(0, QUESTION_TIME - elapsed)
@@ -172,18 +177,16 @@ if mode == "Player":
             index=0,
             key=f"q{q_index}"
         )
-
         st.write(f"⏳ Time left: {remaining} sec")
 
+        # Submit button
         if (st.button("Submit") or remaining == 0) and not st.session_state.answered:
             st.session_state.answered = True
-            st.session_state.feedback_time = time.time()
 
-            # Load state again for score update
+            # Update score
             with open(STATE_FILE, "r") as f:
                 state = json.load(f)
 
-            # Update score
             correct = st.session_state.selected_answer == q["answer"]
             found = False
             for s in state["scores"]:
@@ -196,26 +199,23 @@ if mode == "Player":
                     "name": st.session_state.player_name,
                     "score": POINTS_PER_QUESTION if correct else 0
                 })
-
             with open(STATE_FILE, "w") as f:
                 json.dump(state, f)
 
-        # Feedback display
-        if st.session_state.answered:
+        # Feedback display in last 3 seconds
+        if st.session_state.answered and remaining <= FEEDBACK_TIME:
             if st.session_state.selected_answer == q["answer"]:
                 st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
             else:
                 st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-            elapsed_feedback = time.time() - st.session_state.feedback_time
-            if elapsed_feedback > FEEDBACK_TIME:
-                # Move to next question
-                with open(STATE_FILE, "r") as f:
-                    state = json.load(f)
-                if state["current_question"] < len(questions) - 1:
-                    state["current_question"] += 1
-                    with open(STATE_FILE, "w") as f:
-                        json.dump(state, f)
+        # Move to next question after full 15 seconds
+        if remaining == 0:
+            if state["current_question"] < len(questions) - 1:
+                state["current_question"] += 1
+                with open(STATE_FILE, "w") as f:
+                    json.dump(state, f)
                 st.session_state.selected_answer = None
                 st.session_state.answered = False
                 st.session_state.start_time = time.time()
+                st.experimental_rerun()
