@@ -18,7 +18,8 @@ if not os.path.exists(STATE_FILE):
     state = {
         "game_started": False,
         "current_question": 0,
-        "scores": []
+        "scores": [],
+        "game_over": False
     }
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
@@ -86,6 +87,7 @@ if mode == "Host":
         if st.button("Start Game"):
             state["game_started"] = True
             state["current_question"] = 0
+            state["game_over"] = False
             with open(STATE_FILE, "w") as f:
                 json.dump(state, f)
             st.success("Game started!")
@@ -95,7 +97,8 @@ if mode == "Host":
         state = {
             "game_started": False,
             "current_question": 0,
-            "scores": []
+            "scores": [],
+            "game_over": False
         }
         with open(STATE_FILE, "w") as f:
             json.dump(state, f)
@@ -103,20 +106,17 @@ if mode == "Host":
 
     # Show game progress or final leaderboard
     if state["game_started"]:
-        if state["current_question"] >= len(questions):
+        if state["game_over"]:
             st.success("🎉 Game Over! Final Leaderboard:")
             if state['scores']:
-                df = pd.DataFrame(state['scores'])
-                df = df.sort_values(by="score", ascending=False)
-                df.insert(0, "Rank", range(1, len(df) + 1))
+                df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False)
+                df.insert(0, "Rank", range(1, len(df)+1))
                 st.table(df[["Rank", "name", "score"]])
-            else:
-                st.write("No scores yet.")
         else:
             st.write(f"Game in progress... Question {state['current_question'] + 1}/{len(questions)}")
             if state['scores']:
                 df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False).head(3)
-                df.insert(0, "Rank", range(1, len(df) + 1))
+                df.insert(0, "Rank", range(1, len(df)+1))
                 st.subheader("🏆 Leaderboard - Top 3")
                 st.table(df[["Rank", "name", "score"]])
             else:
@@ -143,19 +143,27 @@ if mode == "Player":
             st.warning("Waiting for host to start the game...")
             st.stop()
 
-        q_index = state["current_question"]
-        if q_index >= len(questions):
+        if state["game_over"]:
             st.success("🎉 Game Over! Thank you for playing.")
             if state['scores']:
                 df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False)
-                df.insert(0, "Rank", range(1, len(df) + 1))
+                df.insert(0, "Rank", range(1, len(df)+1))
                 st.subheader("🏆 Final Leaderboard")
                 st.table(df[["Rank", "name", "score"]])
             st.stop()
 
+        q_index = state["current_question"]
+
+        if q_index >= len(questions):
+            # Mark game over
+            state["game_over"] = True
+            with open(STATE_FILE, "w") as f:
+                json.dump(state, f)
+            st.experimental_rerun()
+
         q = questions[q_index]
 
-        # Initialize session state variables
+        # Session state
         if "selected_answer" not in st.session_state:
             st.session_state.selected_answer = None
         if "answered" not in st.session_state:
@@ -198,7 +206,7 @@ if mode == "Player":
             with open(STATE_FILE, "w") as f:
                 json.dump(state, f)
 
-        # Feedback for entire timer
+        # Show feedback for entire timer
         if st.session_state.answered:
             if st.session_state.selected_answer == q["answer"]:
                 st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
@@ -209,12 +217,17 @@ if mode == "Player":
         if elapsed >= QUESTION_TIME:
             with open(STATE_FILE, "r") as f:
                 state = json.load(f)
-            if state["current_question"] < len(questions) - 1:
+
+            if q_index < len(questions) - 1:
                 state["current_question"] += 1
-                with open(STATE_FILE, "w") as f:
-                    json.dump(state, f)
+            else:
+                state["game_over"] = True
+
+            with open(STATE_FILE, "w") as f:
+                json.dump(state, f)
+
+            # Reset session state
             st.session_state.selected_answer = None
             st.session_state.answered = False
             st.session_state.start_time = time.time()
-            # Rerun safely after updating state
             st.experimental_rerun()
