@@ -1,7 +1,5 @@
 {
   "started": false,
   "current_q": 0,
-  "players": {},
-  "questions": [],
-  "question_start": null
+  "players": {}
 }
