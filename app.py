@@ -60,9 +60,9 @@ STATIC_QUESTIONS = [
 ]
 
 # -------------------------------
-# Generate AI questions (with timeout)
+# Generate AI questions (fast fallback)
 # -------------------------------
-def get_ai_questions(timeout=3):
+def get_ai_questions(timeout=2):
     prompt = """
     Create 5 multiple-choice quiz questions about Data Literacy and AI Agents.
     Provide them as a JSON list with keys: question, options, answer.
@@ -117,8 +117,6 @@ if mode == "Host":
 
     if not state["game_started"]:
         if st.button("Start Game"):
-            # Generate AI questions (quickly fallback to static if slow)
-            start = time.time()
             state["questions"] = get_ai_questions(timeout=2)
             state["game_started"] = True
             state["current_question"] = 0
@@ -171,6 +169,7 @@ if mode == "Player":
         state["players"] = {}
         save_state(state)
 
+    # Add player instantly
     if st.session_state.player_name not in state["players"]:
         state["players"][st.session_state.player_name] = 0
         save_state(state)
@@ -208,7 +207,7 @@ if mode == "Player":
     st.session_state.selected_answer = st.radio(
         "Choose your answer:",
         q["options"],
-        key=f"q{q_index}",
+        key=f"{q_index}_{st.session_state.player_name}",
         index=0
     )
     st.write(f"⏳ Time left: {remaining} sec")
@@ -228,14 +227,13 @@ if mode == "Player":
         else:
             st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-    # Move to next question after timer ends
+    # Move to next question **only on timer expiry**
     if elapsed >= QUESTION_TIME:
         if q_index < len(state["questions"]) - 1:
             state["current_question"] += 1
         else:
             state["game_over"] = True
         save_state(state)
-        # Reset session for next question
         st.session_state.start_time = time.time()
         st.session_state.selected_answer = None
         st.session_state.answered = False
