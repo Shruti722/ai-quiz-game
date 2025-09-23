@@ -25,7 +25,7 @@ def save_state(state):
 st.title("🎮 Host Screen")
 
 # Generate QR code for players
-game_url = st.experimental_get_url().split("?")[0] + "?role=player"
+game_url = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=player"
 qr = qrcode.QRCode(version=1, box_size=8, border=2)
 qr.add_data(game_url)
 qr.make(fit=True)
