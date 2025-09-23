@@ -6,8 +6,8 @@ import google.generativeai as genai
 
 STATE_FILE = "state.json"
 
-# Configure Gemini API
-genai.configure(api_key=os.environ.get("AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y"))
+# 🔑 Configure Gemini API (direct key placement)
+genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")
 
 def load_state():
     if not os.path.exists(STATE_FILE):
@@ -80,11 +80,11 @@ if role == "Host":
 
         # Show QR Code so players can join
         st.subheader("📱 Share with Players")
-        player_url = st.experimental_get_query_params()
-        if "url" in player_url:
-            player_link = player_url["url"][0]
-        else:
-            player_link = st.request.url.replace("role=Host", "role=Player")
+
+        # Build the player link manually
+        # Replace this with your deployed app URL
+        APP_URL = "https://ai-quiz-game.streamlit.app"
+        player_link = f"{APP_URL}?role=Player"
 
         qr = qrcode.make(player_link)
         qr.save("qr.png")
