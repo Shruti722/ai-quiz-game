@@ -1,0 +1,12 @@
+[
+  {
+    "question": "Which of these is an AI agent?",
+    "options": ["ChatGPT", "Word Document", "Excel File", "PowerPoint"],
+    "answer": "ChatGPT"
+  },
+  {
+    "question": "What is the primary purpose of data visualization?",
+    "options": ["Encrypt data", "Analyze trends and patterns", "Store data", "Delete data"],
+    "answer": "Analyze trends and patterns"
+  }
+]
