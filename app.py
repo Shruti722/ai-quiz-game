@@ -1,14 +1,17 @@
 import streamlit as st
 import pandas as pd
-import random
 import time
 import qrcode
 from io import BytesIO
 import json
 import os
+from streamlit_autorefresh import st_autorefresh
 
 STATE_FILE = "state.json"
 GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
+
+QUESTION_TIME = 15
+POINTS_PER_QUESTION = 5
 
 # -------------------------------
 # Initialize state.json if not exists
@@ -18,9 +21,6 @@ if not os.path.exists(STATE_FILE):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
 
-# -------------------------------
-# Load state
-# -------------------------------
 def load_state():
     with open(STATE_FILE, "r") as f:
         return json.load(f)
@@ -28,8 +28,6 @@ def load_state():
 def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
-
-state = load_state()
 
 # -------------------------------
 # Question bank (5 questions)
@@ -52,8 +50,10 @@ questions = [
      "answer": "Learning from environment"},
 ]
 
-QUESTION_TIME = 15
-POINTS_PER_QUESTION = 5
+# -------------------------------
+# Auto-refresh every 1 sec
+# -------------------------------
+st_autorefresh(interval=1000, limit=None, key="quiz_autorefresh")
 
 # -------------------------------
 # App Mode
@@ -67,7 +67,6 @@ if mode == "Host":
     st.title("🎮 Quiz Game Host")
     st.write("📱 Players scan the QR code below to join:")
 
-    # QR code
     qr = qrcode.QRCode(version=1, box_size=8, border=2)
     qr.add_data(GAME_URL)
     qr.make(fit=True)
@@ -76,9 +75,9 @@ if mode == "Host":
     img.save(buf)
     st.image(buf, width=200)
 
+    state = load_state()
     st.write(f"Players joined: {len(state['scores'])}")
 
-    # Start Game
     if not state["game_started"]:
         if st.button("Start Game"):
             state["game_started"] = True
@@ -87,7 +86,6 @@ if mode == "Host":
             save_state(state)
             st.success("Game started!")
 
-    # Restart Game
     if st.button("Restart Game"):
         state = {"game_started": False, "current_question": 0, "scores": [], "game_over": False}
         save_state(state)
@@ -127,28 +125,11 @@ if mode == "Player":
 
     st.write(f"Welcome, **{st.session_state.player_name}**!")
 
-    # -------------------------------
-    # Auto-refresh to detect host start
-    # -------------------------------
     state = load_state()
     if not state["game_started"]:
         st.warning("⏳ Waiting for host to start the game...")
-        st.experimental_rerun()  # force refresh every run
-        st.stop()
+        st.stop()  # autorefresh will retry
 
-    # -------------------------------
-    # Initialize session state for question
-    # -------------------------------
-    if "start_time" not in st.session_state or st.session_state.start_time is None:
-        st.session_state.start_time = time.time()
-    if "answered" not in st.session_state:
-        st.session_state.answered = False
-    if "selected_answer" not in st.session_state:
-        st.session_state.selected_answer = None
-
-    # -------------------------------
-    # Game Over Check
-    # -------------------------------
     if state.get("game_over", False):
         st.success("🎉 Game Over! Thank you for playing.")
         if state['scores']:
@@ -158,9 +139,15 @@ if mode == "Player":
             st.table(df[["Rank", "name", "score"]])
         st.stop()
 
-    # -------------------------------
-    # Display Current Question
-    # -------------------------------
+    # Initialize session state for question
+    if "start_time" not in st.session_state or st.session_state.start_time is None:
+        st.session_state.start_time = time.time()
+    if "answered" not in st.session_state:
+        st.session_state.answered = False
+    if "selected_answer" not in st.session_state:
+        st.session_state.selected_answer = None
+
+    # Current question
     q_index = state["current_question"]
     q = questions[q_index]
 
@@ -179,8 +166,6 @@ if mode == "Player":
     # Submit answer
     if st.button("Submit") and not st.session_state.answered:
         st.session_state.answered = True
-
-        # Update score
         state = load_state()
         correct = st.session_state.selected_answer == q["answer"]
         found = False
@@ -211,9 +196,7 @@ if mode == "Player":
         else:
             state["game_over"] = True
         save_state(state)
-
         # Reset session for next question
         st.session_state.start_time = time.time()
         st.session_state.selected_answer = None
         st.session_state.answered = False
-        st.experimental_rerun()
