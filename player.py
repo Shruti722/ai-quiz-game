@@ -5,9 +5,9 @@ import time
 STATE_FILE = "state.json"
 QUESTIONS_FILE = "questions.json"
 
-with open(QUESTIONS_FILE, "r") as f:
-    QUESTIONS = json.load(f)
-
+# -------------------------------
+# Utility functions
+# -------------------------------
 def load_state():
     try:
         with open(STATE_FILE, "r") as f:
@@ -19,6 +19,12 @@ def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
 
+with open(QUESTIONS_FILE, "r") as f:
+    QUESTIONS = json.load(f)
+
+# -------------------------------
+# Player Page
+# -------------------------------
 st.title("🎮 AI-Powered Quiz Game")
 
 # Player enters name
