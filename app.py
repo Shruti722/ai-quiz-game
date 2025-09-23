@@ -6,6 +6,7 @@ import qrcode
 from io import BytesIO
 import json
 import os
+from streamlit_autorefresh import st_autorefresh
 
 STATE_FILE = "state.json"
 GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
@@ -54,6 +55,11 @@ FEEDBACK_TIME = 3
 POINTS_PER_QUESTION = 5
 
 # -------------------------------
+# Auto-refresh every second
+# -------------------------------
+st_autorefresh(interval=1000, limit=None, key="quiz_autorefresh")
+
+# -------------------------------
 # App Mode
 # -------------------------------
 mode = st.sidebar.selectbox("Select mode:", ["Player", "Host"])
@@ -75,7 +81,7 @@ if mode == "Host":
     st.image(buf, width=200)
 
     st.write(f"Players joined: {len(state['scores'])}")
-    
+
     if not state["game_started"]:
         if st.button("Start Game"):
             state["game_started"] = True
@@ -185,11 +191,3 @@ if mode == "Player":
                 st.session_state.selected_answer = None
                 st.session_state.answered = False
                 st.session_state.start_time = time.time()
-                st.experimental_rerun()
-            else:
-                st.write(f"➡️ Next question in {FEEDBACK_TIME - int(elapsed_feedback)} sec...")
-                time.sleep(1)
-                st.experimental_rerun()
-        else:
-            time.sleep(1)
-            st.experimental_rerun()
