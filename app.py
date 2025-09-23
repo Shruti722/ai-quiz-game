@@ -4,33 +4,18 @@ import pandas as pd
 import time
 import qrcode
 from io import BytesIO
-import json
-import os
+from supabase import create_client, Client
 from streamlit_autorefresh import st_autorefresh
 
-STATE_FILE = "state.json"
-GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
+# -------------------------------
+# Supabase credentials
+# -------------------------------
+SUPABASE_URL = "YOUR_SUPABASE_URL"
+SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY"
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -------------------------------
-# Initialize state.json if not exists
-# -------------------------------
-if not os.path.exists(STATE_FILE):
-    state = {
-        "game_started": False,
-        "current_question": 0,
-        "scores": []
-    }
-    with open(STATE_FILE, "w") as f:
-        json.dump(state, f)
-
-# -------------------------------
-# Load state
-# -------------------------------
-with open(STATE_FILE, "r") as f:
-    state = json.load(f)
-
-# -------------------------------
-# Question bank
+# Quiz config
 # -------------------------------
 questions = [
     {"question": "Which of the following best describes structured data?",
@@ -54,24 +39,22 @@ QUESTION_TIME = 15
 FEEDBACK_TIME = 3
 POINTS_PER_QUESTION = 5
 
-# -------------------------------
-# Auto-refresh every second
-# -------------------------------
+# Auto-refresh for timers
 st_autorefresh(interval=1000, limit=None, key="quiz_autorefresh")
 
 # -------------------------------
 # App Mode
 # -------------------------------
-mode = st.sidebar.selectbox("Select mode:", ["Player", "Host"])
+mode = st.sidebar.selectbox("Select mode:", ["Host", "Player"])
 
 # -------------------------------
-# Host Screen
+# Host screen
 # -------------------------------
 if mode == "Host":
     st.title("🎮 Quiz Game Host")
-    st.write("📱 Players scan the QR code below to join:")
 
     # QR code
+    GAME_URL = "YOUR_DEPLOYED_STREAMLIT_URL"
     qr = qrcode.QRCode(version=1, box_size=8, border=2)
     qr.add_data(GAME_URL)
     qr.make(fit=True)
@@ -79,24 +62,38 @@ if mode == "Host":
     buf = BytesIO()
     img.save(buf)
     st.image(buf, width=200)
+    st.write("📱 Players scan the QR code to join!")
 
-    st.write(f"Players joined: {len(state['scores'])}")
+    # Fetch game info
+    game = supabase.table("game_info").select("*").eq("id", 1).single().execute().data
 
-    if not state["game_started"]:
+    # Start game button
+    if not game["game_started"]:
         if st.button("Start Game"):
-            state["game_started"] = True
-            state["current_question"] = 0
-            with open(STATE_FILE, "w") as f:
-                json.dump(state, f)
+            supabase.table("game_info").update({"game_started": True, "current_question": 0}).eq("id", 1).execute()
             st.success("Game started!")
+
     else:
-        st.write(f"Game in progress... Current Question: {state['current_question'] + 1}/{len(questions)}")
-        df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False).head(3)
-        st.subheader("🏆 Leaderboard - Top 3")
-        st.table(df)
+        st.write(f"Game in progress... Current Question: {game['current_question'] + 1}/{len(questions)}")
+
+        # Leaderboard
+        scores = supabase.table("game_scores").select("*").order("score", desc=True).limit(3).execute().data
+        if scores:
+            df = pd.DataFrame(scores)
+            df.insert(0, "Rank", range(1, len(df) + 1))
+            st.subheader("🏆 Leaderboard - Top 3")
+            st.table(df[["Rank", "player_name", "score"]])
+
+    # Restart Game button
+    if st.button("Restart Game"):
+        # Reset game info
+        supabase.table("game_info").update({"game_started": False, "current_question": 0}).eq("id", 1).execute()
+        # Clear all player scores
+        supabase.table("game_scores").delete().neq("id", 0).execute()  # Delete all rows
+        st.success("Game has been reset! Players can rejoin.")
 
 # -------------------------------
-# Player Screen
+# Player screen
 # -------------------------------
 if mode == "Player":
     st.title("🎮 Quiz Game Player")
@@ -110,21 +107,31 @@ if mode == "Player":
     else:
         st.write(f"Welcome, **{st.session_state.player_name}**!")
 
-        # Wait for host to start
-        if not state["game_started"]:
+        # Register player in Supabase if new
+        players = supabase.table("game_scores").select("*").eq("player_name", st.session_state.player_name).execute().data
+        if not players:
+            supabase.table("game_scores").insert({"player_name": st.session_state.player_name, "score": 0}).execute()
+
+        # Fetch game info
+        game = supabase.table("game_info").select("*").eq("id", 1).single().execute().data
+
+        if not game["game_started"]:
             st.warning("Waiting for host to start the game...")
             st.stop()
 
-        q_index = state["current_question"]
+        q_index = game["current_question"]
         if q_index >= len(questions):
             st.success("Game finished!")
-            df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False).head(3)
-            st.subheader("🏆 Leaderboard - Top 3")
-            st.table(df)
+            scores = supabase.table("game_scores").select("*").order("score", desc=True).limit(3).execute().data
+            if scores:
+                df = pd.DataFrame(scores)
+                df.insert(0, "Rank", range(1, len(df) + 1))
+                st.subheader("🏆 Leaderboard - Top 3")
+                st.table(df[["Rank", "player_name", "score"]])
             st.stop()
 
+        # Question display
         q = questions[q_index]
-
         if "selected_answer" not in st.session_state:
             st.session_state.selected_answer = None
         if "answered" not in st.session_state:
@@ -151,28 +158,13 @@ if mode == "Player":
             st.session_state.answered = True
             st.session_state.feedback_time = time.time()
 
-            # Load state again for score update
-            with open(STATE_FILE, "r") as f:
-                state = json.load(f)
-
-            # Update score
             correct = st.session_state.selected_answer == q["answer"]
-            found = False
-            for s in state["scores"]:
-                if s["name"] == st.session_state.player_name:
-                    if correct:
-                        s["score"] += POINTS_PER_QUESTION
-                    found = True
-            if not found:
-                state["scores"].append({
-                    "name": st.session_state.player_name,
-                    "score": POINTS_PER_QUESTION if correct else 0
-                })
+            # Update score
+            player = supabase.table("game_scores").select("*").eq("player_name", st.session_state.player_name).single().execute().data
+            new_score = player["score"] + (POINTS_PER_QUESTION if correct else 0)
+            supabase.table("game_scores").update({"score": new_score}).eq("player_name", st.session_state.player_name).execute()
 
-            with open(STATE_FILE, "w") as f:
-                json.dump(state, f)
-
-        # Feedback display
+        # Feedback
         if st.session_state.answered:
             if st.session_state.selected_answer == q["answer"]:
                 st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
@@ -181,13 +173,6 @@ if mode == "Player":
 
             elapsed_feedback = time.time() - st.session_state.feedback_time
             if elapsed_feedback > FEEDBACK_TIME:
-                # Move to next question
-                with open(STATE_FILE, "r") as f:
-                    state = json.load(f)
-                if state["current_question"] < len(questions) - 1:
-                    state["current_question"] += 1
-                    with open(STATE_FILE, "w") as f:
-                        json.dump(state, f)
-                st.session_state.selected_answer = None
-                st.session_state.answered = False
-                st.session_state.start_time = time.time()
+                st.write("Waiting for host to advance the question...")
+            else:
+                st.write(f"➡️ Next question in {FEEDBACK_TIME - int(elapsed_feedback)} sec...")
