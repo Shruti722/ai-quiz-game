@@ -9,24 +9,28 @@ import google.generativeai as genai
 from streamlit_autorefresh import st_autorefresh
 
 # -------------------------------
-# Configurations
+# Configuration
 # -------------------------------
 STATE_FILE = "state.json"
-GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=Player"  # your app URL
+GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
 QUESTION_TIME = 15
 POINTS_PER_QUESTION = 5
 
-# -------------------------------
-# Gemini API
-# -------------------------------
-genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y api")  # directly place API key here
+# Configure Gemini API key directly
+genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y api")  # <-- Replace with your key
 
 # -------------------------------
-# Load/Save state
+# Initialize state.json if not exists
+# -------------------------------
+if not os.path.exists(STATE_FILE):
+    state = {"game_started": False, "current_question": 0, "scores": [], "game_over": False, "questions": []}
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f)
+
+# -------------------------------
+# Helper Functions
 # -------------------------------
 def load_state():
-    if not os.path.exists(STATE_FILE):
-        return {"game_started": False, "current_question": 0, "players": {}, "scores": [], "game_over": False, "questions": []}
     with open(STATE_FILE, "r") as f:
         return json.load(f)
 
@@ -38,24 +42,27 @@ def reset_game():
     if os.path.exists(STATE_FILE):
         os.remove(STATE_FILE)
 
-# -------------------------------
-# Generate questions via AI or fallback
-# -------------------------------
 def get_ai_questions():
+    """Generate 5 questions using Gemini API, fallback to static questions if error or timeout"""
     prompt = """
-    Generate 5 multiple-choice quiz questions about Data Literacy and AI Agents.
-    Return as JSON list with keys: question, options, answer.
-    Example: [{"question": "What is structured data?", "options":["Images","Tables","Videos","Audio"], "answer":"Tables"}]
+    Create 5 multiple-choice quiz questions about Data Literacy and AI Agents.
+    Provide them as a JSON list with keys: question, options, answer.
+    Example:
+    [
+      {"question": "What is structured data?", 
+       "options": ["Images", "Tables with rows/columns", "Videos", "Audio"], 
+       "answer": "Tables with rows/columns"}
+    ]
     """
     try:
-        model = genai.GenerativeModel("gemini-1.5-turbo")
+        model = genai.GenerativeModel("gemini-1.5-turbo")  # faster variant
         response = model.generate_content(prompt)
         questions = json.loads(response.text)
         if len(questions) < 5:
-            raise Exception("Not enough questions returned")
+            raise ValueError("Fewer than 5 questions returned from AI")
         return questions
     except Exception:
-        # fallback static questions
+        # Fallback static questions
         return [
             {"question": "Which of the following best describes structured data?",
              "options": ["Images", "Tables with rows and columns", "Videos", "Audio"],
@@ -64,7 +71,7 @@ def get_ai_questions():
              "options": ["Encrypt data", "Analyze trends and patterns", "Store data", "Delete data"],
              "answer": "Analyze trends and patterns"},
             {"question": "What is the main function of an AI agent?",
-             "options": ["Sense, Decide, Act", "Store data", "Only predict numbers", "Encrypt files"],
+             "options": ["Sense, Decide, Act", "Store data only", "Only predict numbers", "Encrypt files"],
              "answer": "Sense, Decide, Act"},
             {"question": "Which of these is an example of an AI agent?",
              "options": ["ChatGPT", "Word Document", "Excel File", "PowerPoint"],
@@ -72,6 +79,12 @@ def get_ai_questions():
             {"question": "Which feature can AI agents have?",
              "options": ["Learning from environment", "Only remembering static data", "Watching videos", "Printing documents"],
              "answer": "Learning from environment"},
+            {"question": "Which AI agent famously defeated a human champion in the game of Go?",
+             "options": ["Siri", "Alexa", "AlphaGo", "IBM Watson"],
+             "answer": "AlphaGo"},
+            {"question": "What is a unique feature of 'multi-agent' systems in AI?",
+             "options": ["Only one AI makes all decisions", "Multiple AI agents interact to solve complex problems", "AI agents compete with humans only", "AI agents only store data"],
+             "answer": "Multiple AI agents interact to solve complex problems"}
         ]
 
 # -------------------------------
@@ -82,62 +95,67 @@ st_autorefresh(interval=1000, limit=None, key="quiz_autorefresh")
 # -------------------------------
 # App Mode
 # -------------------------------
-mode = st.sidebar.radio("Select mode:", ["Host", "Player"])
+role = st.sidebar.selectbox("Select mode:", ["Host", "Player"])
 
 # -------------------------------
-# HOST SCREEN
+# Host Screen
 # -------------------------------
-if mode == "Host":
+if role == "Host":
     st.title("🎮 Quiz Game Host")
     state = load_state()
 
-    # QR Code + clickable link
-    st.subheader("📱 Players join here")
-    qr = qrcode.make(GAME_URL)
+    # Show QR code & clickable link for players
+    st.subheader("📱 Players can join")
+    st.write("Scan QR code or click the link below to join as Player:")
+
+    qr = qrcode.QRCode(version=1, box_size=8, border=2)
+    qr.add_data(f"{GAME_URL}?role=Player")
+    qr.make(fit=True)
+    img = qr.make_image(fill='black', back_color='white')
     buf = BytesIO()
-    qr.save(buf)
+    img.save(buf)
     st.image(buf, width=200)
-    st.markdown(f"[Or click here to join as Player]({GAME_URL})", unsafe_allow_html=True)
+    st.markdown(f"[Join as Player]({GAME_URL}?role=Player)")
 
-    # Show joined players
-    state.setdefault("players", {})
-    st.write(f"Players joined: {len(state['players'])}")
+    # Show players joined
+    st.write(f"Players joined: {len(state['scores'])}")
 
-    # Start Game
-    if not state.get("game_started", False):
+    if not state["game_started"]:
         if st.button("🚀 Start Game"):
-            state["questions"] = get_ai_questions()
+            state["questions"] = get_ai_questions()[:5]  # select first 5 questions
             state["game_started"] = True
             state["current_question"] = 0
             state["game_over"] = False
             save_state(state)
             st.success("Game started! Players can now see the first question.")
 
-    # Restart Game
-    if st.button("🔄 Restart Game"):
-        reset_game()
-        st.success("Game has been reset! Players can rejoin.")
+        if st.button("🔄 Restart Game"):
+            state = {"game_started": False, "current_question": 0, "scores": [], "game_over": False, "questions": []}
+            save_state(state)
+            st.success("Game has been reset! Players can rejoin.")
 
-    # Show progress/leaderboard
-    if state.get("game_started", False):
+    else:
+        st.subheader("📊 Game in Progress")
+        st.write(f"Current Question: {state['current_question']+1} / {len(state['questions'])}")
+
+        # Leaderboard
+        if state['scores']:
+            df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False).head(3)
+            df.insert(0, "Rank", range(1, len(df)+1))
+            st.subheader("🏆 Leaderboard - Top 3")
+            st.table(df[["Rank", "name", "score"]])
+
         if state.get("game_over", False):
             st.success("🎉 Game Over! Final Leaderboard:")
-            if state.get('scores'):
+            if state['scores']:
                 df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False)
                 df.insert(0, "Rank", range(1, len(df)+1))
                 st.table(df[["Rank", "name", "score"]])
-        else:
-            st.write(f"Game in progress... Question {state['current_question']+1}/{len(state['questions'])}")
-            if state.get('scores'):
-                df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False).head(3)
-                df.insert(0, "Rank", range(1, len(df)+1))
-                st.subheader("🏆 Leaderboard - Top 3")
-                st.table(df[["Rank", "name", "score"]])
 
 # -------------------------------
-# PLAYER SCREEN
+# Player Screen
 # -------------------------------
-if mode == "Player":
+if role == "Player":
     st.title("🎮 Quiz Game Player")
 
     if "player_name" not in st.session_state:
@@ -149,25 +167,25 @@ if mode == "Player":
     if not st.session_state.player_name:
         st.stop()
 
-    name = st.session_state.player_name
-    state = load_state()
-    state.setdefault("players", {})
-    state.setdefault("scores", [])
+    st.write(f"Welcome, **{st.session_state.player_name}**!")
 
-    # Register player
-    if name not in state["players"]:
-        state["players"][name] = 0
+    state = load_state()
+    if "scores" not in state:
+        state["scores"] = []
+
+    # Initialize player score if not present
+    player_exists = any(s["name"] == st.session_state.player_name for s in state["scores"])
+    if not player_exists:
+        state["scores"].append({"name": st.session_state.player_name, "score": 0})
         save_state(state)
 
-    st.write(f"Welcome, **{name}**!")
-
-    if not state.get("game_started", False):
-        st.info("⏳ Waiting for host to start the game...")
-        st.stop()
+    if not state["game_started"]:
+        st.warning("⏳ Waiting for host to start the game...")
+        st.stop()  # autorefresh will retry
 
     if state.get("game_over", False):
         st.success("🎉 Game Over! Thank you for playing.")
-        if state.get('scores'):
+        if state['scores']:
             df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False)
             df.insert(0, "Rank", range(1, len(df)+1))
             st.subheader("🏆 Final Leaderboard")
@@ -193,7 +211,7 @@ if mode == "Player":
     st.session_state.selected_answer = st.radio(
         "Choose your answer:",
         q["options"],
-        key=f"{name}_{q_index}",
+        key=f"q{q_index}",
         index=0
     )
     st.write(f"⏳ Time left: {remaining} sec")
@@ -201,18 +219,15 @@ if mode == "Player":
     # Submit answer
     if st.button("Submit") and not st.session_state.answered:
         st.session_state.answered = True
+        state = load_state()
         correct = st.session_state.selected_answer == q["answer"]
-        found = False
         for s in state["scores"]:
-            if s["name"] == name:
+            if s["name"] == st.session_state.player_name:
                 if correct:
                     s["score"] += POINTS_PER_QUESTION
-                found = True
-        if not found:
-            state["scores"].append({"name": name, "score": POINTS_PER_QUESTION if correct else 0})
         save_state(state)
 
-    # Show feedback
+    # Show feedback immediately
     if st.session_state.answered:
         if st.session_state.selected_answer == q["answer"]:
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
@@ -221,20 +236,13 @@ if mode == "Player":
 
     # Move to next question after timer ends
     if elapsed >= QUESTION_TIME:
+        state = load_state()
         if q_index < len(state["questions"]) - 1:
             state["current_question"] += 1
         else:
             state["game_over"] = True
         save_state(state)
-        # Reset session state
+        # Reset session for next question
         st.session_state.start_time = time.time()
         st.session_state.selected_answer = None
         st.session_state.answered = False
-
-# -------------------------------
-# Admin Reset
-# -------------------------------
-st.sidebar.subheader("⚙️ Admin Controls")
-if st.sidebar.button("🔄 Reset Game"):
-    reset_game()
-    st.sidebar.success("Game reset!")
