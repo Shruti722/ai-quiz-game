@@ -13,6 +13,7 @@ from streamlit_autorefresh import st_autorefresh
 # -------------------------------
 STATE_FILE = "state.json"
 GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
+PLAYER_URL = f"{GAME_URL}?role=Player"  # direct link for players
 QUESTION_TIME = 15
 POINTS_PER_QUESTION = 5
 
@@ -66,12 +67,6 @@ def get_ai_questions(timeout=2):
     prompt = """
     Create 5 multiple-choice quiz questions about Data Literacy and AI Agents.
     Provide them as a JSON list with keys: question, options, answer.
-    Example:
-    [
-      {"question": "What is structured data?", 
-       "options": ["Images", "Tables with rows/columns", "Videos", "Audio"], 
-       "answer": "Tables with rows/columns"}
-    ]
     """
     try:
         model = genai.GenerativeModel("gemini-1.5-turbo")
@@ -91,22 +86,29 @@ st_autorefresh(interval=1000, limit=None, key="quiz_autorefresh")
 # -------------------------------
 # App Mode
 # -------------------------------
-mode = st.sidebar.selectbox("Select mode:", ["Host", "Player"])
+# Detect mode from query param first
+query_params = st.experimental_get_query_params()
+mode_param = query_params.get("role", [""])[0]
+mode = st.sidebar.selectbox("Select mode:", ["Host", "Player"], index=0 if mode_param!="Player" else 1)
 
 # -------------------------------
 # HOST SCREEN
 # -------------------------------
 if mode == "Host":
     st.title("🎮 Quiz Game Host")
-    st.write("📱 Players scan the QR code below to join:")
+    st.write("📱 Players scan the QR code or click the link below to join:")
 
+    # QR code
     qr = qrcode.QRCode(version=1, box_size=8, border=2)
-    qr.add_data(GAME_URL)
+    qr.add_data(PLAYER_URL)  # direct player link
     qr.make(fit=True)
     img = qr.make_image(fill='black', back_color='white')
     buf = BytesIO()
     img.save(buf)
     st.image(buf, width=200)
+    
+    # Clickable link
+    st.write(f"🔗 Or click here to join: [Join as Player]({PLAYER_URL})")
 
     state = load_state()
     if "players" not in state:
@@ -227,7 +229,7 @@ if mode == "Player":
         else:
             st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-    # Move to next question **only on timer expiry**
+    # Move to next question only on timer expiry
     if elapsed >= QUESTION_TIME:
         if q_index < len(state["questions"]) - 1:
             state["current_question"] += 1
@@ -237,3 +239,11 @@ if mode == "Player":
         st.session_state.start_time = time.time()
         st.session_state.selected_answer = None
         st.session_state.answered = False
+
+# -------------------------------
+# Admin Reset
+# -------------------------------
+st.sidebar.subheader("⚙️ Admin Controls")
+if st.sidebar.button("🔄 Reset Game"):
+    reset_game()
+    st.sidebar.success("Game reset!")
