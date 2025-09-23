@@ -39,11 +39,16 @@ questions = [
 # -------------------------------
 game_url = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=player"
 
-# ------------------------------- 
-# Role detection (host or player) 
-# ------------------------------- 
-query_params = st.query_params 
-role = query_params.get("role", ["host"])[0]  # default = host
+# -------------------------------
+# Role detection (host or player)
+# -------------------------------
+query_params = st.query_params
+
+# If "role" is not present in URL, default to host
+if "role" in query_params:
+    role = query_params["role"][0]
+else:
+    role = "host"
 
 # -------------------------------
 # Host Screen
