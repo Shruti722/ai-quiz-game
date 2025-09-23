@@ -30,7 +30,7 @@ with open(STATE_FILE, "r") as f:
     state = json.load(f)
 
 # -------------------------------
-# Question bank
+# Question bank (5 questions)
 # -------------------------------
 questions = [
     {"question": "Which of the following best describes structured data?",
@@ -159,6 +159,7 @@ if mode == "Player":
 
         q = questions[q_index]
 
+        # Initialize session state variables
         if "selected_answer" not in st.session_state:
             st.session_state.selected_answer = None
         if "answered" not in st.session_state:
@@ -214,9 +215,11 @@ if mode == "Player":
                 state["current_question"] += 1
                 with open(STATE_FILE, "w") as f:
                     json.dump(state, f)
+                # Reset session state safely
                 st.session_state.selected_answer = None
                 st.session_state.answered = False
                 st.session_state.start_time = time.time()
+                # Use st.experimental_rerun safely
                 st.experimental_rerun()
             else:
                 # Game finished
