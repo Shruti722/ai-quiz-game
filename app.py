@@ -13,7 +13,7 @@ import google.generativeai as genai
 # -------------------------------
 STATE_FILE = "state.json"
 GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=Player"
-QUESTION_TIME = 15
+QUESTION_TIME = 20
 POINTS_PER_QUESTION = 5
 
 # -------------------------------
@@ -23,37 +23,22 @@ genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")  # Replace wi
 MODEL_NAME = "gemini-1.5-turbo"
 
 # -------------------------------
-# Fallback Questions (3 questions)
+# Fallback Questions (3 questions only)
 # -------------------------------
 FALLBACK_QUESTIONS = [
     {
-        "question": "What is data literacy?",
-        "options": [
-            "Ability to read and work with data",
-            "Ability to code in Python only",
-            "Ability to memorize statistics",
-            "Ability to create charts only"
-        ],
+        "question": "What does 'data literacy' mean?",
+        "options": ["Ability to read and work with data", "Ability to code only", "Memorize statistics", "Make charts only"],
         "answer": "Ability to read and work with data"
     },
     {
         "question": "What is an AI agent?",
-        "options": [
-            "A piece of software that perceives and acts in an environment",
-            "A robot only",
-            "Any computer program",
-            "A human working with AI"
-        ],
-        "answer": "A piece of software that perceives and acts in an environment"
+        "options": ["A robot only", "Software that perceives and acts in an environment", "Any computer program", "Human working with AI"],
+        "answer": "Software that perceives and acts in an environment"
     },
     {
-        "question": "Fun fact: Which AI agent famously won Jeopardy! against human champions?",
-        "options": [
-            "Siri",
-            "Watson",
-            "Alexa",
-            "BERT"
-        ],
+        "question": "Fun fact: Which AI agent famously won Jeopardy! against humans?",
+        "options": ["Watson", "Siri", "Alexa", "BERT"],
         "answer": "Watson"
     }
 ]
@@ -105,12 +90,10 @@ def init_state():
     save_state(s)
 
 # -------------------------------
-# AI-generated questions (optional, 3 questions)
+# AI-generated questions (optional)
 # -------------------------------
 def get_ai_questions():
-    prompt = """Create 3 multiple-choice quiz questions about Data Literacy and AI Agents. 
-    Provide them as a JSON list with keys: question, options, answer. 
-    Make the questions engaging and suitable for a short quiz."""
+    prompt = """Create 3 multiple-choice quiz questions about Data Literacy and AI Agents. Provide them as a JSON list with keys: question, options, answer."""
     try:
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(prompt)
@@ -151,8 +134,6 @@ if mode == "Host":
     st.markdown(f"[👉 Click here to join as Player]({GAME_URL})")
 
     state = load_state()
-
-    # Only count players with a non-empty name
     real_players = [name for name in state["players"] if name.strip() != ""]
     st.write(f"Players joined: {len(real_players)}")
 
@@ -167,7 +148,6 @@ if mode == "Host":
             df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False)
             df.insert(0, "Rank", range(1, len(df)+1))
             st.table(df[["Rank","name","score"]])
-        st.stop()
 
     if not state["game_started"]:
         if st.button("🚀 Start Game"):
@@ -182,7 +162,9 @@ if mode == "Host":
             save_state(state)
             st.success("Game started!")
 
-    if st.button("🔄 Restart Game"):
+    # --- Restart / Clear Memory with confirmation ---
+    restart_confirm = st.checkbox("⚠️ Confirm Reset Game / Clear Memory")
+    if restart_confirm and st.button("🔄 Restart Game"):
         state = {
             "game_started": False,
             "current_question": 0,
@@ -193,6 +175,7 @@ if mode == "Host":
             "host_question_start": time.time()
         }
         save_state(state)
+        st.success("Game has been reset! Players can rejoin.")
         st.experimental_rerun()
 
     # Progress game
@@ -273,7 +256,7 @@ if mode == "Player":
     if "selected_answer" not in st.session_state:
         st.session_state.selected_answer = None
 
-    st.markdown(f"**Question {q_index+1}/{len(state['questions'])}: {q['question']}**")
+    st.markdown(f"**Question {q_index+1}: {q['question']}**")
     remaining = max(0, QUESTION_TIME - int(time.time() - state["host_question_start"]))
     st.write(f"⏳ Time left for this question: {remaining} sec")
 
