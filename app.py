@@ -135,13 +135,66 @@ if mode == "Host":
 
     state = load_state()
 
-    # Only count players who have a valid name
+    # Only count players with a non-empty name
     real_players = [name for name in state["players"] if name.strip() != ""]
     st.write(f"Players joined: {len(real_players)}")
 
     if not state["questions"]:
         state["questions"] = get_ai_questions()
         save_state(state)
+
+    # Show final leaderboard if game ended
+    if state["game_over"]:
+        st.success("🎉 Game Over! Final Leaderboard:")
+        if state["scores"]:
+            df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False)
+            df.insert(0, "Rank", range(1, len(df)+1))
+            st.table(df[["Rank","name","score"]])
+        st.stop()
+
+    if not state["game_started"]:
+        if st.button("🚀 Start Game"):
+            state = load_state()
+            if not state["questions"]:
+                state["questions"] = get_ai_questions()
+            state["game_started"] = True
+            state["current_question"] = 0
+            state["game_over"] = False
+            state["scores"] = []
+            state["host_question_start"] = time.time()
+            save_state(state)
+            st.success("Game started!")
+
+    if st.button("🔄 Restart Game"):
+        state = {
+            "game_started": False,
+            "current_question": 0,
+            "scores": [],
+            "game_over": False,
+            "players": {},
+            "questions": FALLBACK_QUESTIONS.copy(),
+            "host_question_start": time.time()
+        }
+        save_state(state)
+        st.experimental_rerun()
+
+    # Progress game
+    if state["game_started"] and not state["game_over"]:
+        elapsed = int(time.time() - state["host_question_start"])
+        if elapsed >= QUESTION_TIME:
+            if state["current_question"] < len(state["questions"]) - 1:
+                state["current_question"] += 1
+                state["host_question_start"] = time.time()
+            else:
+                state["game_over"] = True
+            save_state(state)
+
+        st.write(f"Game in progress... Question {state['current_question']+1}/{len(state['questions'])}")
+        if state["scores"]:
+            df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False).head(5)
+            df.insert(0, "Rank", range(1, len(df)+1))
+            st.subheader("🏆 Leaderboard - Top 5")
+            st.table(df[["Rank","name","score"]])
 
 # -------------------------------
 # PLAYER
@@ -155,16 +208,16 @@ if mode == "Player":
         st.session_state.player_name = st.text_input("Enter your first name:")
         if not st.session_state.player_name:
             st.stop()
-    player = st.session_state.player_name
+    player = st.session_state.player_name.strip()
     st.write(f"Welcome, **{player}**!")
 
     state = load_state()
-    if player not in state["players"]:
+    if player != "" and player not in state["players"]:
         state["players"][player] = 0
         save_state(state)
         state = load_state()
 
-    # --- Show final leaderboard if game ended ---
+    # Show final leaderboard if game ended
     if state["game_over"]:
         st.success("🎉 Game Over! Final Leaderboard:")
         if state["scores"]:
@@ -178,7 +231,7 @@ if mode == "Player":
         st.warning("⏳ Waiting for host to start the game...")
         st.stop()
 
-    # --- Question handling ---
+    # Ensure valid question
     q_index = state["current_question"]
     if q_index >= len(state["questions"]):
         state["game_over"] = True
@@ -190,16 +243,20 @@ if mode == "Player":
             st.table(df[["Rank","name","score"]])
         st.stop()
 
+    q = state["questions"][q_index]
+
     if "last_question_index" not in st.session_state:
-        st.session_state.last_question_index = -1
+        st.session_state.last_question_index = q_index
     if st.session_state.last_question_index != q_index:
         st.session_state.answered = False
         st.session_state.selected_answer = None
         st.session_state.last_question_index = q_index
+    if "answered" not in st.session_state:
+        st.session_state.answered = False
+    if "selected_answer" not in st.session_state:
+        st.session_state.selected_answer = None
 
-    q = state["questions"][q_index]
     st.markdown(f"**Question {q_index+1}: {q['question']}**")
-
     remaining = max(0, QUESTION_TIME - int(time.time() - state["host_question_start"]))
     st.write(f"⏳ Time left for this question: {remaining} sec")
 
@@ -208,19 +265,17 @@ if mode == "Player":
     if st.button("Submit") and not st.session_state.answered:
         st.session_state.answered = True
         correct = st.session_state.selected_answer == q["answer"]
-        try:
-            s2 = load_state()
-            found = False
-            for entry in s2["scores"]:
-                if entry["name"] == player:
-                    if correct:
-                        entry["score"] += POINTS_PER_QUESTION
-                    found = True
-            if not found:
-                s2["scores"].append({"name": player, "score": POINTS_PER_QUESTION if correct else 0})
-            save_state(s2)
-        except Exception as e:
-            st.error(f"Error saving score: {e}")
+        s2 = load_state()
+        found = False
+        for entry in s2["scores"]:
+            if entry["name"] == player:
+                if correct:
+                    entry["score"] += POINTS_PER_QUESTION
+                found = True
+        if not found:
+            s2["scores"].append({"name": player, "score": POINTS_PER_QUESTION if correct else 0})
+        save_state(s2)
+        state = load_state()
 
     if st.session_state.answered:
         if st.session_state.selected_answer == q["answer"]:
