@@ -12,14 +12,14 @@ import google.generativeai as genai
 # Config
 # -------------------------------
 STATE_FILE = "state.json"
-GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=Player"  # update to your deployed URL
+GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=Player"  # Update to your deployed URL
 QUESTION_TIME = 15
 POINTS_PER_QUESTION = 5
 
 # -------------------------------
 # Gemini Setup
 # -------------------------------
-genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")  # replace with your API key
+genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")  # Replace with your API key
 MODEL_NAME = "gemini-1.5-turbo"
 
 # -------------------------------
@@ -78,8 +78,22 @@ FALLBACK_QUESTIONS = [
 # -------------------------------
 def init_state():
     if not os.path.exists(STATE_FILE):
-        state = {"game_started": False, "current_question": 0,
-                 "scores": [], "game_over": False, "players": {}, "questions": []}
+        state = {
+            "game_started": False,
+            "current_question": 0,
+            "scores": [],
+            "game_over": False,
+            "players": {},
+            "questions": []
+        }
+        save_state(state)
+    else:
+        # Ensure all keys exist
+        state = load_state()
+        if "players" not in state:
+            state["players"] = {}
+        if "questions" not in state:
+            state["questions"] = []
         save_state(state)
 
 def load_state():
@@ -111,13 +125,19 @@ def get_ai_questions():
 # -------------------------------
 st_autorefresh(interval=1000, limit=None, key="quiz_autorefresh")
 init_state()
+state = load_state()
+
+# Pre-generate AI questions at app start if empty
+if not state["questions"]:
+    state["questions"] = get_ai_questions()
+    save_state(state)
 
 # -------------------------------
 # Mode Selection
 # -------------------------------
 params = st.query_params
 role = params.get("role", ["Host"])[0]
-mode = st.sidebar.selectbox("Select mode:", ["Host", "Player"], index=0 if role == "Host" else 1)
+mode = st.sidebar.selectbox("Select mode:", ["Host", "Player"], index=0 if role.lower() == "host" else 1)
 
 # -------------------------------
 # Host Screen
@@ -126,7 +146,7 @@ if mode == "Host":
     st.title("🎮 Quiz Game Host")
     st.write("📱 Players scan the QR code or click the link below to join:")
 
-    # Generate QR code
+    # QR code
     qr = qrcode.QRCode(version=1, box_size=8, border=2)
     qr.add_data(GAME_URL)
     qr.make(fit=True)
@@ -141,7 +161,6 @@ if mode == "Host":
 
     if not state["game_started"]:
         if st.button("🚀 Start Game"):
-            state["questions"] = get_ai_questions()
             state["game_started"] = True
             state["current_question"] = 0
             state["game_over"] = False
@@ -150,7 +169,7 @@ if mode == "Host":
 
     if st.button("🔄 Restart Game"):
         state = {"game_started": False, "current_question": 0,
-                 "scores": [], "game_over": False, "players": {}, "questions": []}
+                 "scores": [], "game_over": False, "players": {}, "questions": state["questions"]}
         save_state(state)
         st.success("Game has been reset! Players can rejoin.")
 
@@ -214,7 +233,7 @@ if mode == "Player":
     if "selected_answer" not in st.session_state:
         st.session_state.selected_answer = None
 
-    questions = state["questions"] if state["questions"] else FALLBACK_QUESTIONS
+    questions = state["questions"]
     q_index = state["current_question"]
     q = questions[q_index]
 
