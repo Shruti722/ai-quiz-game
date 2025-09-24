@@ -26,51 +26,81 @@ MODEL_NAME = "gemini-1.5-turbo"
 # Fallback Questions (15 total)
 # -------------------------------
 FALLBACK_QUESTIONS = [
-    {"question": "What does the standard deviation measure?",
-     "options": ["The central value of data", "The spread of data around the mean", "The most common value", "The difference between max and min"],
-     "answer": "The spread of data around the mean"},
-    {"question": "Which company built AlphaGo, the AI agent that beat a Go world champion?",
-     "options": ["OpenAI", "DeepMind", "IBM", "Microsoft"],
-     "answer": "DeepMind"},
-    {"question": "Which measure of central tendency is most affected by extreme values?",
-     "options": ["Mean", "Median", "Mode", "Range"],
-     "answer": "Mean"},
-    {"question": "Which of these best describes 'data literacy'?",
-     "options": ["Ability to read and work with data", "Ability to code", "Ability to memorize statistics", "Ability to create charts only"],
-     "answer": "Ability to read and work with data"},
-    {"question": "What is a 'multi-agent system'?",
-     "options": ["AI working in isolation", "Multiple AI agents interacting", "Humans and AI working together", "One AI agent with multiple tasks"],
-     "answer": "Multiple AI agents interacting"},
-    {"question": "Which famous AI agent defeated Garry Kasparov in chess?",
-     "options": ["AlphaGo", "Siri", "Deep Blue", "Watson"],
-     "answer": "Deep Blue"},
-    {"question": "What is the primary purpose of data visualization?",
-     "options": ["To make data look pretty", "To identify patterns and insights", "To store data", "To clean data"],
-     "answer": "To identify patterns and insights"},
-    {"question": "Which AI agent famously won Jeopardy! against human champions?",
-     "options": ["Siri", "Watson", "Alexa", "BERT"],
-     "answer": "Watson"},
-    {"question": "Which of these is an example of a reactive AI agent?",
-     "options": ["Chess AI", "Personal Assistant", "Self-driving car", "Spam filter"],
-     "answer": "Spam filter"},
-    {"question": "What does a histogram show?",
-     "options": ["Trends over time", "Distribution of data", "Relationship between variables", "Averages only"],
-     "answer": "Distribution of data"},
-    {"question": "If the mean = median = mode in a dataset, what is its distribution?",
-     "options": ["Skewed left", "Skewed right", "Normal distribution", "Uniform distribution"],
-     "answer": "Normal distribution"},
-    {"question": "What is the 'environment' in AI agents?",
-     "options": ["The physical world only", "The context in which an agent operates", "The internet", "The dataset only"],
-     "answer": "The context in which an agent operates"},
-    {"question": "Which type of chart is best for showing parts of a whole?",
-     "options": ["Bar chart", "Pie chart", "Histogram", "Scatter plot"],
-     "answer": "Pie chart"},
-    {"question": "What is an AI agent?",
-     "options": ["A piece of software that perceives and acts in an environment", "A robot only", "Any computer program", "A human working with AI"],
-     "answer": "A piece of software that perceives and acts in an environment"},
-    {"question": "What does a pie chart represent best?",
-     "options": ["Parts of a whole", "Trends over time", "Correlation between variables", "Frequency distribution"],
-     "answer": "Parts of a whole"},
+    {
+        "question": "What does the standard deviation measure?",
+        "options": ["The central value of data", "The spread of data around the mean", "The most common value", "The difference between max and min"],
+        "answer": "The spread of data around the mean"
+    },
+    {
+        "question": "Which company built AlphaGo, the AI agent that beat a Go world champion?",
+        "options": ["OpenAI", "DeepMind", "IBM", "Microsoft"],
+        "answer": "DeepMind"
+    },
+    {
+        "question": "Which measure of central tendency is most affected by extreme values?",
+        "options": ["Mean", "Median", "Mode", "Range"],
+        "answer": "Mean"
+    },
+    {
+        "question": "Which of these best describes 'data literacy'?",
+        "options": ["Ability to read and work with data", "Ability to code", "Ability to memorize statistics", "Ability to create charts only"],
+        "answer": "Ability to read and work with data"
+    },
+    {
+        "question": "What is a 'multi-agent system'?",
+        "options": ["AI working in isolation", "Multiple AI agents interacting", "Humans and AI working together", "One AI agent with multiple tasks"],
+        "answer": "Multiple AI agents interacting"
+    },
+    {
+        "question": "Which famous AI agent defeated Garry Kasparov in chess?",
+        "options": ["AlphaGo", "Siri", "Deep Blue", "Watson"],
+        "answer": "Deep Blue"
+    },
+    {
+        "question": "What is the primary purpose of data visualization?",
+        "options": ["To make data look pretty", "To identify patterns and insights", "To store data", "To clean data"],
+        "answer": "To identify patterns and insights"
+    },
+    {
+        "question": "Which AI agent famously won Jeopardy! against human champions?",
+        "options": ["Siri", "Watson", "Alexa", "BERT"],
+        "answer": "Watson"
+    },
+    {
+        "question": "Which of these is an example of a reactive AI agent?",
+        "options": ["Chess AI", "Personal Assistant", "Self-driving car", "Spam filter"],
+        "answer": "Spam filter"
+    },
+    {
+        "question": "What does a histogram show?",
+        "options": ["Trends over time", "Distribution of data", "Relationship between variables", "Averages only"],
+        "answer": "Distribution of data"
+    },
+    {
+        "question": "If the mean = median = mode in a dataset, what is its distribution?",
+        "options": ["Skewed left", "Skewed right", "Normal distribution", "Uniform distribution"],
+        "answer": "Normal distribution"
+    },
+    {
+        "question": "What is the 'environment' in AI agents?",
+        "options": ["The physical world only", "The context in which an agent operates", "The internet", "The dataset only"],
+        "answer": "The context in which an agent operates"
+    },
+    {
+        "question": "Which type of chart is best for showing parts of a whole?",
+        "options": ["Bar chart", "Pie chart", "Histogram", "Scatter plot"],
+        "answer": "Pie chart"
+    },
+    {
+        "question": "What is an AI agent?",
+        "options": ["A piece of software that perceives and acts in an environment", "A robot only", "Any computer program", "A human working with AI"],
+        "answer": "A piece of software that perceives and acts in an environment"
+    },
+    {
+        "question": "What does a pie chart represent best?",
+        "options": ["Parts of a whole", "Trends over time", "Correlation between variables", "Frequency distribution"],
+        "answer": "Parts of a whole"
+    }
 ]
 
 # -------------------------------
