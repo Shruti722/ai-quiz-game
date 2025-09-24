@@ -272,12 +272,17 @@ if mode == "Player":
 
     # Timer progression
     if elapsed >= QUESTION_TIME:
-        if q_index < len(questions) - 1:
+        if state["current_question"] < len(questions) - 1:
+            # Move to next question
             state["current_question"] += 1
+            save_state(state)
+            # Reset session for next question
+            st.session_state.start_time = None
+            st.session_state.selected_answer = None
+            st.session_state.answered = False
+            st.experimental_rerun()
         else:
+            # Last question finished
             state["game_over"] = True
-        save_state(state)
-        st.session_state.start_time = None
-        st.session_state.selected_answer = None
-        st.session_state.answered = False
-        st.stop()
+            save_state(state)
+            st.experimental_rerun()
