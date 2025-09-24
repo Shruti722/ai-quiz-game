@@ -10,10 +10,10 @@ import google.generativeai as genai
 # -------------------------------
 # CONFIGURE GEMINI API
 # -------------------------------
-genai.configure(api_key=os.getenv("AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y"))  # set your API key in env variable
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))  # set your API key in env variable
 
 STATE_FILE = "state.json"
-GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"  # replace with your Streamlit Cloud URL
+GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app"
 
 QUESTION_TIME = 15
 POINTS_PER_QUESTION = 5
@@ -69,7 +69,7 @@ def generate_questions(n=5):
 mode = st.sidebar.selectbox("Select mode:", ["Host", "Player"])
 
 # -------------------------------
-# Host Screen
+# HOST SCREEN
 # -------------------------------
 if mode == "Host":
     st.title("🎮 Quiz Game Host")
@@ -107,7 +107,7 @@ if mode == "Host":
         save_state(state)
         st.success("🔄 Game has been reset! Players can rejoin.")
 
-    # Show leaderboard or progress
+    # Game in progress / leaderboard
     state = load_state()
     if state["game_started"]:
         if state["game_over"]:
@@ -118,6 +118,24 @@ if mode == "Host":
                 st.table(df[["Rank", "name", "score"]])
         else:
             st.write(f"Game in progress... Question {state['current_question'] + 1}/{len(state['questions'])}")
+
+            # Timer
+            if "host_start_time" not in st.session_state:
+                st.session_state.host_start_time = time.time()
+            elapsed = int(time.time() - st.session_state.host_start_time)
+            remaining = max(0, QUESTION_TIME - elapsed)
+            st.write(f"⏳ Time left for this question: {remaining} sec")
+
+            # Advance question automatically when timer ends
+            if elapsed >= QUESTION_TIME:
+                if state["current_question"] < len(state["questions"]) - 1:
+                    state["current_question"] += 1
+                    st.session_state.host_start_time = time.time()
+                else:
+                    state["game_over"] = True
+                save_state(state)
+
+            # Show top 3 leaderboard
             if state['scores']:
                 df = pd.DataFrame(state['scores']).sort_values(by="score", ascending=False).head(3)
                 df.insert(0, "Rank", range(1, len(df)+1))
@@ -125,7 +143,7 @@ if mode == "Host":
                 st.table(df[["Rank", "name", "score"]])
 
 # -------------------------------
-# Player Screen
+# PLAYER SCREEN
 # -------------------------------
 if mode == "Player":
     st.title("🎮 Quiz Game Player")
@@ -141,15 +159,13 @@ if mode == "Player":
 
     st.write(f"Welcome, **{st.session_state.player_name}**!")
 
-    # Auto-refresh until host starts
+    # Load state
     state = load_state()
     if not state["game_started"]:
         st.warning("⏳ Waiting for host to start the game...")
         st.stop()
 
     # Initialize session state
-    if "start_time" not in st.session_state or st.session_state.start_time is None:
-        st.session_state.start_time = time.time()
     if "answered" not in st.session_state:
         st.session_state.answered = False
     if "selected_answer" not in st.session_state:
@@ -172,8 +188,6 @@ if mode == "Player":
         st.stop()
 
     q = questions[q_index]
-    elapsed = int(time.time() - st.session_state.start_time)
-    remaining = max(0, QUESTION_TIME - elapsed)
 
     st.write(f"**Question {q_index + 1}: {q['question']}**")
     st.session_state.selected_answer = st.radio(
@@ -181,7 +195,6 @@ if mode == "Player":
         q["options"],
         key=f"q{q_index}"
     )
-    st.write(f"⏳ Time left: {remaining} sec")
 
     # Submit Answer
     if st.button("Submit") and not st.session_state.answered:
@@ -208,17 +221,3 @@ if mode == "Player":
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
         else:
             st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
-
-    # Move to next question after timer
-    if elapsed >= QUESTION_TIME:
-        if q_index < len(questions) - 1:
-            state["current_question"] += 1
-        else:
-            state["game_over"] = True
-        save_state(state)
-
-        # Reset session state
-        st.session_state.start_time = time.time()
-        st.session_state.selected_answer = None
-        st.session_state.answered = False
-        st.rerun()
