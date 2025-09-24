@@ -19,7 +19,7 @@ POINTS_PER_QUESTION = 5
 # -------------------------------
 # Gemini Setup
 # -------------------------------
-genai.configure(api_key="YOUR_API_KEY")  # Replace with your API key
+genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")  # Replace with your API key
 MODEL_NAME = "gemini-1.5-turbo"
 
 # -------------------------------
