@@ -57,7 +57,6 @@ def load_state():
             "questions": [],
             "host_question_start": time.time()
         }
-
     with open(STATE_FILE, "r") as f:
         state = json.load(f)
 
@@ -222,13 +221,20 @@ if mode == "Player":
             st.table(df[["Rank","name","score"]])
         st.stop()
 
-    # Session state for answer tracking
+    # Reset answered state if host moved to next question
+    if "last_question_index" not in st.session_state:
+        st.session_state.last_question_index = state["current_question"]
+
+    if st.session_state.last_question_index != state["current_question"]:
+        st.session_state.answered = False
+        st.session_state.selected_answer = None
+        st.session_state.last_question_index = state["current_question"]
+
     if "answered" not in st.session_state:
         st.session_state.answered = False
     if "selected_answer" not in st.session_state:
         st.session_state.selected_answer = None
 
-    # Current question info
     questions = state["questions"]
     q_index = state["current_question"]
     q = questions[q_index]
@@ -256,7 +262,7 @@ if mode == "Player":
                     s["score"] += POINTS_PER_QUESTION
                 found = True
         if not found:
-            state["scores"].append({"name": st.session_state.player_name, 
+            state["scores"].append({"name": st.session_state.player_name,
                                     "score": POINTS_PER_QUESTION if correct else 0})
         save_state(state)
 
