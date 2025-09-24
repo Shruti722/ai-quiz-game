@@ -17,7 +17,7 @@ QUESTION_TIME = 20
 POINTS_PER_QUESTION = 5
 
 # -------------------------------
-# Gemini Setup
+# Gemini Setup (optional)
 # -------------------------------
 genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")  # Replace with your API key
 MODEL_NAME = "gemini-1.5-turbo"
@@ -44,38 +44,23 @@ FALLBACK_QUESTIONS = [
 ]
 
 # -------------------------------
-# State Management
+# State management (robust)
 # -------------------------------
 def save_state(state):
-    with open(STATE_FILE, "w") as f:
+    """
+    Write to a temp file then atomically replace the state file to avoid partial/corrupt JSON.
+    """
+    tmp = STATE_FILE + ".tmp"
+    with open(tmp, "w") as f:
         json.dump(state, f)
+    # atomic replace
+    os.replace(tmp, STATE_FILE)
 
 def load_state():
-    if not os.path.exists(STATE_FILE):
-        return {
-            "game_started": False,
-            "current_question": 0,
-            "scores": [],
-            "game_over": False,
-            "players": {},
-            "questions": [],
-            "host_question_start": time.time()
-        }
-    try:
-        with open(STATE_FILE, "r") as f:
-            state = json.load(f)
-    except (json.JSONDecodeError, FileNotFoundError):
-        state = {
-            "game_started": False,
-            "current_question": 0,
-            "scores": [],
-            "game_over": False,
-            "players": {},
-            "questions": [],
-            "host_question_start": time.time()
-        }
-        save_state(state)
-
+    """
+    Load state, recover from invalid/corrupt file by resetting.
+    Ensure all expected keys exist.
+    """
     defaults = {
         "game_started": False,
         "current_question": 0,
@@ -85,17 +70,53 @@ def load_state():
         "questions": [],
         "host_question_start": time.time()
     }
-    for key, val in defaults.items():
-        if key not in state:
-            state[key] = val
+
+    if not os.path.exists(STATE_FILE):
+        # initialize fresh
+        state = defaults.copy()
+        # populate fallback questions by default
+        state["questions"] = FALLBACK_QUESTIONS.copy()
+        save_state(state)
+        return state
+
+    try:
+        with open(STATE_FILE, "r") as f:
+            state = json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError):
+        # corrupted file -> reset
+        state = defaults.copy()
+        state["questions"] = FALLBACK_QUESTIONS.copy()
+        save_state(state)
+        return state
+
+    # ensure keys exist
+    for k, v in defaults.items():
+        if k not in state:
+            state[k] = v
+
+    # if questions missing or empty, fill fallback
+    if not state.get("questions"):
+        state["questions"] = FALLBACK_QUESTIONS.copy()
+        save_state(state)
+
+    # defensive: ensure current_question is within valid range
+    if not isinstance(state.get("current_question", 0), int):
+        state["current_question"] = 0
+    if state["current_question"] < 0:
+        state["current_question"] = 0
+    if state["current_question"] >= len(state["questions"]):
+        # mark game over (finished) to prevent IndexError and show final leaderboard
+        state["game_over"] = True
+        save_state(state)
+
     return state
 
 def init_state():
-    state = load_state()
-    save_state(state)
+    s = load_state()
+    save_state(s)
 
 # -------------------------------
-# Question Generator
+# Question generation (optional)
 # -------------------------------
 def get_ai_questions():
     prompt = """
@@ -106,25 +127,28 @@ def get_ai_questions():
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(prompt)
         questions = json.loads(response.text)
-        return questions
+        # minimal validation
+        if isinstance(questions, list) and len(questions) >= 1:
+            return questions
     except Exception:
-        return FALLBACK_QUESTIONS
+        pass
+    return FALLBACK_QUESTIONS.copy()
 
 # -------------------------------
-# Auto-refresh
+# Auto-refresh so pages update
 # -------------------------------
 st_autorefresh(interval=1000, limit=None, key="quiz_autorefresh")
 init_state()
 
 # -------------------------------
-# Mode Selection
+# Mode selection
 # -------------------------------
 params = st.query_params
 role = params.get("role", ["Host"])[0]
 mode = st.sidebar.selectbox("Select mode:", ["Host", "Player"], index=0 if role.lower() == "host" else 1)
 
 # -------------------------------
-# Host Screen
+# HOST
 # -------------------------------
 if mode == "Host":
     st.title("🎮 Quiz Game Host")
@@ -139,11 +163,21 @@ if mode == "Host":
     st.image(buf, width=200)
     st.markdown(f"[👉 Click here to join as Player]({GAME_URL})")
 
+    # always reload current state at the top of host block
     state = load_state()
     st.write(f"Players joined: {len(state['players'])}")
 
+    # generate questions if none exist (host action)
+    if not state.get("questions"):
+        state["questions"] = get_ai_questions()
+        save_state(state)
+
     if not state["game_started"]:
         if st.button("🚀 Start Game"):
+            # reload before mutating to take latest
+            state = load_state()
+            if not state.get("questions"):
+                state["questions"] = get_ai_questions()
             state["game_started"] = True
             state["current_question"] = 0
             state["game_over"] = False
@@ -152,22 +186,26 @@ if mode == "Host":
             st.success("Game started!")
 
     if st.button("🔄 Restart Game"):
+        # reload then reset but keep existing questions if present
+        state = load_state()
         state = {
             "game_started": False,
             "current_question": 0,
             "scores": [],
             "game_over": False,
             "players": {},
-            "questions": state["questions"],
+            "questions": state.get("questions", FALLBACK_QUESTIONS.copy()),
             "host_question_start": time.time()
         }
         save_state(state)
         st.success("Game has been reset! Players can rejoin.")
 
-    # Advance question based on timer
+    # Advance questions when appropriate
+    state = load_state()  # reload latest
     if state["game_started"] and not state["game_over"]:
-        elapsed = int(time.time() - state["host_question_start"])
+        elapsed = int(time.time() - state.get("host_question_start", time.time()))
         if elapsed >= QUESTION_TIME:
+            # advance safely
             if state["current_question"] < len(state["questions"]) - 1:
                 state["current_question"] += 1
                 state["host_question_start"] = time.time()
@@ -177,12 +215,12 @@ if mode == "Host":
 
         st.write(f"Game in progress... Question {state['current_question']+1}/{len(state['questions'])}")
         if state["scores"]:
-            df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False).head(3)
+            df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False).head(5)
             df.insert(0, "Rank", range(1, len(df)+1))
-            st.subheader("🏆 Leaderboard - Top 3")
+            st.subheader("🏆 Leaderboard - Top 5")
             st.table(df[["Rank","name","score"]])
 
-    if state["game_over"]:
+    if state.get("game_over"):
         st.success("🎉 Game Over! Final Leaderboard:")
         if state["scores"]:
             df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False)
@@ -190,48 +228,66 @@ if mode == "Host":
             st.table(df[["Rank","name","score"]])
 
 # -------------------------------
-# Player Screen
+# PLAYER
 # -------------------------------
 if mode == "Player":
     st.title("🎮 Quiz Game Player")
 
+    # --- get player name (persisted per-session) ---
     if "player_name" not in st.session_state:
         st.session_state.player_name = ""
-
     if not st.session_state.player_name:
         st.session_state.player_name = st.text_input("Enter your first name:")
-
-    if not st.session_state.player_name:
         st.stop()
+    player = st.session_state.player_name
+    st.write(f"Welcome, **{player}**!")
 
-    # Load state and register player first
+    # load latest state and register player safely
     state = load_state()
-    if st.session_state.player_name not in state["players"]:
-        state["players"][st.session_state.player_name] = 0
-        save_state(state)
+    if player not in state["players"]:
+        # reload before modifying to reduce race windows
+        state = load_state()
+        if player not in state["players"]:
+            state["players"][player] = 0
+            save_state(state)
+            # reload after save so we operate on fresh state
+            state = load_state()
 
-    # Reload state after registration
-    state = load_state()
-
-    # --- Show final leaderboard if game is over ---
-    if state["game_over"]:
-        st.success("🎉 Game Over! Thank you for playing.")
-        if state["scores"]:
+    # Immediately reflect game_over (highest priority)
+    if state.get("game_over"):
+        st.success("🎉 Game Over! Final Leaderboard:")
+        if state.get("scores"):
             df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False)
             df.insert(0, "Rank", range(1, len(df)+1))
             st.subheader("🏆 Final Leaderboard")
             st.table(df[["Rank","name","score"]])
         st.stop()
 
-    # --- Waiting for host ---
-    if not state["game_started"]:
+    # If host hasn't started the game yet
+    if not state.get("game_started"):
         st.warning("⏳ Waiting for host to start the game...")
         st.stop()
 
-    # Reset answered state if host moved to next question
+    # ensure questions exist; defensive
+    if not state.get("questions"):
+        state["questions"] = FALLBACK_QUESTIONS.copy()
+        save_state(state)
+
+    # ensure current_question is valid; if not, mark game_over and show leaderboard
+    if state["current_question"] >= len(state["questions"]):
+        state["game_over"] = True
+        save_state(state)
+        st.success("🎉 Game Over! Final Leaderboard:")
+        if state.get("scores"):
+            df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False)
+            df.insert(0, "Rank", range(1, len(df)+1))
+            st.subheader("🏆 Final Leaderboard")
+            st.table(df[["Rank","name","score"]])
+        st.stop()
+
+    # Reset per-session answered state on question change
     if "last_question_index" not in st.session_state:
         st.session_state.last_question_index = state["current_question"]
-
     if st.session_state.last_question_index != state["current_question"]:
         st.session_state.answered = False
         st.session_state.selected_answer = None
@@ -242,41 +298,67 @@ if mode == "Player":
     if "selected_answer" not in st.session_state:
         st.session_state.selected_answer = None
 
-    questions = state["questions"]
+    # Safe access to the current question
     q_index = state["current_question"]
+    questions = state["questions"]
+    # double-check bounds
+    if q_index < 0 or q_index >= len(questions):
+        # out of bounds -> end game
+        state["game_over"] = True
+        save_state(state)
+        st.success("🎉 Game Over! Final Leaderboard:")
+        if state.get("scores"):
+            df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False)
+            df.insert(0, "Rank", range(1, len(df)+1))
+            st.subheader("🏆 Final Leaderboard")
+            st.table(df[["Rank","name","score"]])
+        st.stop()
+
     q = questions[q_index]
 
-    # Display question
-    st.markdown(f"**Question {q_index+1}: {q['question']}**")
-
-    # Countdown timer synced with host
+    # Display question and timer (synced to host)
+    st.markdown(f"**Question {q_index+1}: {q.get('question', '---')}**")
     remaining = max(0, QUESTION_TIME - int(time.time() - state.get("host_question_start", time.time())))
     st.write(f"⏳ Time left for this question: {remaining} sec")
 
-    # Options
-    st.session_state.selected_answer = st.radio("Choose your answer:", q["options"], key=f"q{q_index}")
+    # Options (radio)
+    st.session_state.selected_answer = st.radio("Choose your answer:", q.get("options", []), key=f"q{q_index}")
 
-    # Submit answer button
+    # Submit: update score on a freshly loaded state to avoid clobbering
     if st.button("Submit") and not st.session_state.answered:
         st.session_state.answered = True
-        correct = st.session_state.selected_answer == q["answer"]
+        correct = st.session_state.selected_answer == q.get("answer")
 
-        # Update score
+        # Reload state, update player score inside this fresh state, then save
+        s2 = load_state()
+        # ensure s2 has a scores list
+        if "scores" not in s2 or not isinstance(s2["scores"], list):
+            s2["scores"] = []
+
         found = False
-        for s in state["scores"]:
-            if s["name"] == st.session_state.player_name:
+        for entry in s2["scores"]:
+            if entry.get("name") == player:
                 if correct:
-                    s["score"] += POINTS_PER_QUESTION
+                    entry["score"] = entry.get("score", 0) + POINTS_PER_QUESTION
                 found = True
+                break
         if not found:
-            state["scores"].append({"name": st.session_state.player_name,
-                                    "score": POINTS_PER_QUESTION if correct else 0})
+            s2["scores"].append({"name": player, "score": POINTS_PER_QUESTION if correct else 0})
 
-        save_state(state)
+        save_state(s2)
+        # reload state to reflect saved data for this session's logic
+        state = load_state()
 
     # Show result only after Submit
     if st.session_state.answered:
-        if st.session_state.selected_answer == q["answer"]:
+        if st.session_state.selected_answer == q.get("answer"):
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
         else:
-            st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
+            st.error(f"Incorrect ❌. Correct answer: {q.get('answer', 'Unknown')}")
+
+    # Optionally show a small leaderboard during play
+    if state.get("scores"):
+        df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False).head(5)
+        df.insert(0, "Rank", range(1, len(df)+1))
+        st.subheader("🏆 Current Leaderboard - Top 5")
+        st.table(df[["Rank","name","score"]])
