@@ -13,7 +13,7 @@ QUESTION_TIME = 15
 POINTS_PER_QUESTION = 5
 
 # Configure Gemini API
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+genai.configure(api_key=os.getenv("AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y"))
 
 # ---------------- HELPERS ----------------
 def load_state():
