@@ -46,23 +46,43 @@ FALLBACK_QUESTIONS = [
 # -------------------------------
 # State Management
 # -------------------------------
-def init_state():
-    if not os.path.exists(STATE_FILE):
-        state = {"game_started": False,"current_question": 0,"scores": [],"game_over": False,"players": {}, "questions": []}
-        save_state(state)
-    else:
-        state = load_state()
-        if "players" not in state: state["players"] = {}
-        if "questions" not in state: state["questions"] = []
-        save_state(state)
-
 def load_state():
+    if not os.path.exists(STATE_FILE):
+        return {
+            "game_started": False,
+            "current_question": 0,
+            "scores": [],
+            "game_over": False,
+            "players": {},
+            "questions": []
+        }
+
     with open(STATE_FILE, "r") as f:
-        return json.load(f)
+        state = json.load(f)
+
+    # Ensure all required keys exist
+    defaults = {
+        "game_started": False,
+        "current_question": 0,
+        "scores": [],
+        "game_over": False,
+        "players": {},
+        "questions": []
+    }
+
+    for key, val in defaults.items():
+        if key not in state:
+            state[key] = val
+
+    return state
 
 def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
+
+def init_state():
+    state = load_state()  # ensures defaults
+    save_state(state)
 
 # -------------------------------
 # Question Generator
@@ -132,9 +152,7 @@ if mode == "Host":
         st.session_state.host_question_start = time.time()
         st.success("Game has been reset! Players can rejoin.")
 
-    # -------------------------------
-    # Automatic question advancement for host
-    # -------------------------------
+    # Automatic question advancement
     if state["game_started"] and not state["game_over"]:
         if "host_question_start" not in st.session_state:
             st.session_state.host_question_start = time.time()
@@ -181,7 +199,7 @@ if mode == "Player":
 
     state = load_state()
 
-    # Register player if new
+    # Register player
     if st.session_state.player_name not in state["players"]:
         state["players"][st.session_state.player_name] = 0
         save_state(state)
@@ -199,19 +217,19 @@ if mode == "Player":
             st.table(df[["Rank","name","score"]])
         st.stop()
 
-    # Initialize session state
+    # Session state initialization
     if "answered" not in st.session_state:
         st.session_state.answered = False
     if "selected_answer" not in st.session_state:
         st.session_state.selected_answer = None
+    if "start_time" not in st.session_state:
+        st.session_state.start_time = time.time()
 
+    # Show current question
     questions = state["questions"]
     q_index = state["current_question"]
     q = questions[q_index]
 
-    # Display timer (optional)
-    if "start_time" not in st.session_state:
-        st.session_state.start_time = time.time()
     elapsed = int(time.time() - st.session_state.start_time)
     remaining = max(0, QUESTION_TIME - elapsed)
 
@@ -224,7 +242,7 @@ if mode == "Player":
         st.session_state.answered = True
         correct = st.session_state.selected_answer == q["answer"]
 
-        # Update player's score
+        # Update score
         found = False
         for s in state["scores"]:
             if s["name"] == st.session_state.player_name:
@@ -235,7 +253,7 @@ if mode == "Player":
             state["scores"].append({"name": st.session_state.player_name, "score": POINTS_PER_QUESTION if correct else 0})
         save_state(state)
 
-    # Show result for current question
+    # Show result
     if st.session_state.answered:
         if st.session_state.selected_answer == q["answer"]:
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
