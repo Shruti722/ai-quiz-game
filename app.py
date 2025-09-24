@@ -213,10 +213,7 @@ if mode == "Player":
     # Reload state after registration
     state = load_state()
 
-    if not state["game_started"]:
-        st.warning("⏳ Waiting for host to start the game...")
-        st.stop()
-
+    # --- Show final leaderboard if game is over ---
     if state["game_over"]:
         st.success("🎉 Game Over! Thank you for playing.")
         if state["scores"]:
@@ -224,6 +221,11 @@ if mode == "Player":
             df.insert(0, "Rank", range(1, len(df)+1))
             st.subheader("🏆 Final Leaderboard")
             st.table(df[["Rank","name","score"]])
+        st.stop()
+
+    # --- Waiting for host ---
+    if not state["game_started"]:
+        st.warning("⏳ Waiting for host to start the game...")
         st.stop()
 
     # Reset answered state if host moved to next question
@@ -269,6 +271,7 @@ if mode == "Player":
         if not found:
             state["scores"].append({"name": st.session_state.player_name,
                                     "score": POINTS_PER_QUESTION if correct else 0})
+
         save_state(state)
 
     # Show result only after Submit
@@ -276,4 +279,4 @@ if mode == "Player":
         if st.session_state.selected_answer == q["answer"]:
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
         else:
-            st.error(f"Incorrect ❌.")
+            st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
