@@ -255,13 +255,15 @@ if mode == "Player":
             st.table(df[["Rank", "name", "score"]])
         st.stop()
 
-    # Question session state
-    if "start_time" not in st.session_state or st.session_state.start_time is None:
+    # Initialize session state
+    if "start_time" not in st.session_state:
         st.session_state.start_time = time.time()
     if "answered" not in st.session_state:
         st.session_state.answered = False
     if "selected_answer" not in st.session_state:
         st.session_state.selected_answer = None
+    if "question_advanced" not in st.session_state:
+        st.session_state.question_advanced = False
 
     questions = state["questions"]
     q_index = state["current_question"]
@@ -278,6 +280,7 @@ if mode == "Player":
     )
     st.write(f"⏳ Time left: {remaining} sec")
 
+    # Submit answer
     if st.button("Submit") and not st.session_state.answered:
         st.session_state.answered = True
         correct = st.session_state.selected_answer == q["answer"]
@@ -294,6 +297,7 @@ if mode == "Player":
             })
         save_state(state)
 
+    # Show feedback
     if st.session_state.answered:
         if st.session_state.selected_answer == q["answer"]:
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
@@ -301,15 +305,18 @@ if mode == "Player":
             st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
     # Move to next question after timer ends
-    if elapsed >= QUESTION_TIME:
+    if elapsed >= QUESTION_TIME and not st.session_state.question_advanced:
         state = load_state()
         if state["current_question"] < len(questions) - 1:
             state["current_question"] += 1
         else:
             state["game_over"] = True
         save_state(state)
-    
-        # Reset session variables for next question
+
+        # Reset session for next question
         st.session_state.start_time = time.time()
         st.session_state.selected_answer = None
         st.session_state.answered = False
+        st.session_state.question_advanced = True
+    elif elapsed < QUESTION_TIME:
+        st.session_state.question_advanced = False
