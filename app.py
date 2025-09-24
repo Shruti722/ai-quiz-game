@@ -63,10 +63,9 @@ def load_state():
         }
     try:
         with open(STATE_FILE, "r") as f:
-            state = json.load(f)
+            return json.load(f)
     except (json.JSONDecodeError, FileNotFoundError):
-        # Reset state if file is corrupted
-        state = {
+        return {
             "game_started": False,
             "current_question": 0,
             "scores": [],
@@ -75,22 +74,6 @@ def load_state():
             "questions": [],
             "host_question_start": time.time()
         }
-        save_state(state)
-
-    defaults = {
-        "game_started": False,
-        "current_question": 0,
-        "scores": [],
-        "game_over": False,
-        "players": {},
-        "questions": [],
-        "host_question_start": time.time()
-    }
-    for key, val in defaults.items():
-        if key not in state:
-            state[key] = val
-
-    return state
 
 def init_state():
     state = load_state()
@@ -146,9 +129,6 @@ if mode == "Host":
     st.image(buf, width=200)
     st.markdown(f"[👉 Click here to join as Player]({GAME_URL})")
 
-    state = load_state()
-    st.write(f"Players joined: {len(state['players'])}")
-
     if not state["game_started"]:
         if st.button("🚀 Start Game"):
             state["game_started"] = True
@@ -171,7 +151,7 @@ if mode == "Host":
         save_state(state)
         st.success("Game has been reset! Players can rejoin.")
 
-    # Advance question based on timer
+    # Advance question
     if state["game_started"] and not state["game_over"]:
         elapsed = int(time.time() - state["host_question_start"])
         if elapsed >= QUESTION_TIME:
@@ -207,12 +187,11 @@ if mode == "Player":
 
     if not st.session_state.player_name:
         st.session_state.player_name = st.text_input("Enter your first name:")
-
-    if not st.session_state.player_name:
         st.stop()
 
     st.write(f"Welcome, **{st.session_state.player_name}**!")
 
+    # Reload state every refresh
     state = load_state()
 
     # Register player
@@ -247,9 +226,8 @@ if mode == "Player":
     if "selected_answer" not in st.session_state:
         st.session_state.selected_answer = None
 
-    questions = state["questions"]
     q_index = state["current_question"]
-    q = questions[q_index]
+    q = state["questions"][q_index]
 
     # Display question
     st.markdown(f"**Question {q_index+1}: {q['question']}**")
@@ -283,4 +261,4 @@ if mode == "Player":
         if st.session_state.selected_answer == q["answer"]:
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
         else:
-            st.error(f"Incorrect ❌.")
+            st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
