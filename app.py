@@ -146,7 +146,7 @@ if mode == "Host":
                 st.table(df[["Rank","name","score"]])
 
 # -------------------------------
-# Player Screen
+# Player Screen (Fixed)
 # -------------------------------
 if mode == "Player":
     st.title("🎮 Quiz Game Player")
@@ -164,7 +164,7 @@ if mode == "Player":
 
     state = load_state()
 
-    # Register player
+    # Register player if new
     if st.session_state.player_name not in state["players"]:
         state["players"][st.session_state.player_name] = 0
         save_state(state)
@@ -207,6 +207,8 @@ if mode == "Player":
     if st.button("Submit") and not st.session_state.answered:
         st.session_state.answered = True
         correct = st.session_state.selected_answer == q["answer"]
+
+        # Update player's score
         found = False
         for s in state["scores"]:
             if s["name"] == st.session_state.player_name:
@@ -217,6 +219,7 @@ if mode == "Player":
             state["scores"].append({"name": st.session_state.player_name, "score": POINTS_PER_QUESTION if correct else 0})
         save_state(state)
 
+    # Show result for the current question
     if st.session_state.answered:
         if st.session_state.selected_answer == q["answer"]:
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
@@ -224,7 +227,7 @@ if mode == "Player":
             st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
     # -------------------------------
-    # Move to next question after timer ends
+    # Move to next question only once per question
     # -------------------------------
     if elapsed >= QUESTION_TIME and not st.session_state.question_advanced:
         state = load_state()
@@ -234,7 +237,7 @@ if mode == "Player":
             state["game_over"] = True
         save_state(state)
 
-        # Reset session state for next question
+        # Reset session state for the next question
         st.session_state.start_time = time.time()
         st.session_state.selected_answer = None
         st.session_state.answered = False
