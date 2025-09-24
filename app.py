@@ -19,7 +19,7 @@ POINTS_PER_QUESTION = 5
 # -------------------------------
 # Gemini Setup
 # -------------------------------
-genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")  # Replace with your API key
+genai.configure(api_key="YOUR_API_KEY_HERE")  # Replace with your API key
 MODEL_NAME = "gemini-1.5-turbo"
 
 # -------------------------------
@@ -243,7 +243,7 @@ if mode == "Player":
     # Options
     st.session_state.selected_answer = st.radio("Choose your answer:", q["options"], key=f"q{q_index}")
 
-    # Submit answer
+    # Submit answer button
     if st.button("Submit") and not st.session_state.answered:
         st.session_state.answered = True
         correct = st.session_state.selected_answer == q["answer"]
@@ -256,9 +256,11 @@ if mode == "Player":
                     s["score"] += POINTS_PER_QUESTION
                 found = True
         if not found:
-            state["scores"].append({"name": st.session_state.player_name, "score": POINTS_PER_QUESTION if correct else 0})
+            state["scores"].append({"name": st.session_state.player_name, 
+                                    "score": POINTS_PER_QUESTION if correct else 0})
         save_state(state)
 
+    # Show result only after Submit
     if st.session_state.answered:
         if st.session_state.selected_answer == q["answer"]:
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
