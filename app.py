@@ -19,7 +19,7 @@ POINTS_PER_QUESTION = 5
 # -------------------------------
 # Gemini Setup
 # -------------------------------
-genai.configure(api_key="YOUR_API_KEY_HERE")  # Replace with your API key
+genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")  # Replace with your API key
 MODEL_NAME = "gemini-1.5-turbo"
 
 # -------------------------------
@@ -46,6 +46,10 @@ FALLBACK_QUESTIONS = [
 # -------------------------------
 # State Management
 # -------------------------------
+def save_state(state):
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f)
+
 def load_state():
     if not os.path.exists(STATE_FILE):
         return {
@@ -57,8 +61,21 @@ def load_state():
             "questions": [],
             "host_question_start": time.time()
         }
-    with open(STATE_FILE, "r") as f:
-        state = json.load(f)
+    try:
+        with open(STATE_FILE, "r") as f:
+            state = json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError):
+        # Reset state if file is corrupted
+        state = {
+            "game_started": False,
+            "current_question": 0,
+            "scores": [],
+            "game_over": False,
+            "players": {},
+            "questions": [],
+            "host_question_start": time.time()
+        }
+        save_state(state)
 
     defaults = {
         "game_started": False,
@@ -69,16 +86,11 @@ def load_state():
         "questions": [],
         "host_question_start": time.time()
     }
-
     for key, val in defaults.items():
         if key not in state:
             state[key] = val
 
     return state
-
-def save_state(state):
-    with open(STATE_FILE, "w") as f:
-        json.dump(state, f)
 
 def init_state():
     state = load_state()
@@ -101,7 +113,7 @@ def get_ai_questions():
         return FALLBACK_QUESTIONS
 
 # -------------------------------
-# Auto-refresh every 1 sec
+# Auto-refresh
 # -------------------------------
 st_autorefresh(interval=1000, limit=None, key="quiz_autorefresh")
 init_state()
