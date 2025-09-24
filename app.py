@@ -13,7 +13,7 @@ import google.generativeai as genai
 # -------------------------------
 STATE_FILE = "state.json"
 GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=Player"
-QUESTION_TIME = 20
+QUESTION_TIME = 15
 POINTS_PER_QUESTION = 5
 
 # -------------------------------
@@ -23,7 +23,7 @@ genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")  # Replace wi
 MODEL_NAME = "gemini-1.5-turbo"
 
 # -------------------------------
-# Fallback Questions (3 questions only)
+# Fallback Questions (2 questions only)
 # -------------------------------
 FALLBACK_QUESTIONS = [
     {
@@ -35,11 +35,6 @@ FALLBACK_QUESTIONS = [
         "question": "What is an AI agent?",
         "options": ["A robot only", "Software that perceives and acts in an environment", "Any computer program", "Human working with AI"],
         "answer": "Software that perceives and acts in an environment"
-    },
-    {
-        "question": "Fun fact: Which AI agent famously won Jeopardy! against humans?",
-        "options": ["Watson", "Siri", "Alexa", "BERT"],
-        "answer": "Watson"
     }
 ]
 
@@ -93,7 +88,7 @@ def init_state():
 # AI-generated questions (optional)
 # -------------------------------
 def get_ai_questions():
-    prompt = """Create 3 multiple-choice quiz questions about Data Literacy and AI Agents. Provide them as a JSON list with keys: question, options, answer."""
+    prompt = """Create 2 multiple-choice quiz questions about Data Literacy and AI Agents. Provide them as a JSON list with keys: question, options, answer."""
     try:
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(prompt)
@@ -141,7 +136,6 @@ if mode == "Host":
         state["questions"] = get_ai_questions()
         save_state(state)
 
-    # Show final leaderboard if game ended
     if state["game_over"]:
         st.success("🎉 Game Over! Final Leaderboard:")
         if state["scores"]:
@@ -162,7 +156,6 @@ if mode == "Host":
             save_state(state)
             st.success("Game started!")
 
-    # --- Restart / Clear Memory with confirmation ---
     restart_confirm = st.checkbox("⚠️ Confirm Reset Game / Clear Memory")
     if restart_confirm and st.button("🔄 Restart Game"):
         state = {
@@ -178,7 +171,6 @@ if mode == "Host":
         st.success("Game has been reset! Players can rejoin.")
         st.experimental_rerun()
 
-    # Progress game
     if state["game_started"] and not state["game_over"]:
         elapsed = int(time.time() - state["host_question_start"])
         if elapsed >= QUESTION_TIME:
@@ -217,7 +209,6 @@ if mode == "Player":
         save_state(state)
         state = load_state()
 
-    # Show final leaderboard if game ended
     if state["game_over"]:
         st.success("🎉 Game Over! Final Leaderboard:")
         if state["scores"]:
@@ -231,7 +222,6 @@ if mode == "Player":
         st.warning("⏳ Waiting for host to start the game...")
         st.stop()
 
-    # Ensure valid question
     q_index = state["current_question"]
     if q_index >= len(state["questions"]):
         state["game_over"] = True
@@ -288,3 +278,4 @@ if mode == "Player":
         df.insert(0, "Rank", range(1, len(df)+1))
         st.subheader("🏆 Current Leaderboard - Top 5")
         st.table(df[["Rank","name","score"]])
+
