@@ -54,20 +54,21 @@ def load_state():
             "scores": [],
             "game_over": False,
             "players": {},
-            "questions": []
+            "questions": [],
+            "host_question_start": time.time()
         }
 
     with open(STATE_FILE, "r") as f:
         state = json.load(f)
 
-    # Ensure all required keys exist
     defaults = {
         "game_started": False,
         "current_question": 0,
         "scores": [],
         "game_over": False,
         "players": {},
-        "questions": []
+        "questions": [],
+        "host_question_start": time.time()
     }
 
     for key, val in defaults.items():
@@ -81,7 +82,7 @@ def save_state(state):
         json.dump(state, f)
 
 def init_state():
-    state = load_state()  # ensures defaults
+    state = load_state()
     save_state(state)
 
 # -------------------------------
@@ -142,29 +143,35 @@ if mode == "Host":
             state["game_started"] = True
             state["current_question"] = 0
             state["game_over"] = False
+            state["host_question_start"] = time.time()
             save_state(state)
-            st.session_state.host_question_start = time.time()
             st.success("Game started!")
 
     if st.button("🔄 Restart Game"):
-        state = {"game_started": False, "current_question": 0, "scores": [], "game_over": False, "players": {}, "questions": state["questions"]}
+        state = {
+            "game_started": False,
+            "current_question": 0,
+            "scores": [],
+            "game_over": False,
+            "players": {},
+            "questions": state["questions"],
+            "host_question_start": time.time()
+        }
         save_state(state)
-        st.session_state.host_question_start = time.time()
         st.success("Game has been reset! Players can rejoin.")
 
-    # Automatic question advancement
+    # Advance question based on timer
     if state["game_started"] and not state["game_over"]:
-        if "host_question_start" not in st.session_state:
-            st.session_state.host_question_start = time.time()
+        elapsed = int(time.time() - state["host_question_start"])
+        remaining = max(0, QUESTION_TIME - elapsed)
 
-        elapsed = int(time.time() - st.session_state.host_question_start)
         if elapsed >= QUESTION_TIME:
             if state["current_question"] < len(state["questions"]) - 1:
                 state["current_question"] += 1
+                state["host_question_start"] = time.time()
             else:
                 state["game_over"] = True
             save_state(state)
-            st.session_state.host_question_start = time.time()
 
         st.write(f"Game in progress... Question {state['current_question']+1}/{len(state['questions'])}")
         if state["scores"]:
@@ -217,25 +224,22 @@ if mode == "Player":
             st.table(df[["Rank","name","score"]])
         st.stop()
 
-    # Session state initialization
+    # Session state for answer tracking
     if "answered" not in st.session_state:
         st.session_state.answered = False
     if "selected_answer" not in st.session_state:
         st.session_state.selected_answer = None
-    if "start_time" not in st.session_state:
-        st.session_state.start_time = time.time()
 
-    # Show current question
+    # Current question info
     questions = state["questions"]
     q_index = state["current_question"]
     q = questions[q_index]
 
-    elapsed = int(time.time() - st.session_state.start_time)
-    remaining = max(0, QUESTION_TIME - elapsed)
-
-    st.write(f"**Question {q_index+1}: {q['question']}**")
-    st.session_state.selected_answer = st.radio("Choose your answer:", q["options"], key=f"q{q_index}")
+    # Countdown timer synced with host
+    remaining = max(0, QUESTION_TIME - int(time.time() - state.get("host_question_start", time.time())))
     st.write(f"⏳ Time left for this question: {remaining} sec")
+
+    st.session_state.selected_answer = st.radio("Choose your answer:", q["options"], key=f"q{q_index}")
 
     # Submit answer
     if st.button("Submit") and not st.session_state.answered:
@@ -253,9 +257,9 @@ if mode == "Player":
             state["scores"].append({"name": st.session_state.player_name, "score": POINTS_PER_QUESTION if correct else 0})
         save_state(state)
 
-    # Show result
     if st.session_state.answered:
         if st.session_state.selected_answer == q["answer"]:
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
         else:
             st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
+
