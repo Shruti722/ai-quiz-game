@@ -270,19 +270,16 @@ if mode == "Player":
         else:
             st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-    # Timer progression
+    # Move to next question after timer ends
     if elapsed >= QUESTION_TIME:
+        state = load_state()
         if state["current_question"] < len(questions) - 1:
-            # Move to next question
             state["current_question"] += 1
-            save_state(state)
-            # Reset session for next question
-            st.session_state.start_time = None
-            st.session_state.selected_answer = None
-            st.session_state.answered = False
-            st.experimental_rerun()
         else:
-            # Last question finished
             state["game_over"] = True
-            save_state(state)
-            st.experimental_rerun()
+        save_state(state)
+    
+        # Reset session variables for next question
+        st.session_state.start_time = time.time()
+        st.session_state.selected_answer = None
+        st.session_state.answered = False
