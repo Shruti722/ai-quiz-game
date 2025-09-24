@@ -19,7 +19,7 @@ POINTS_PER_QUESTION = 5
 # -------------------------------
 # Gemini Setup
 # -------------------------------
-genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")  # Replace with your API key
+genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y") # Replace with your API key
 MODEL_NAME = "gemini-1.5-turbo"
 
 # -------------------------------
@@ -47,10 +47,12 @@ FALLBACK_QUESTIONS = [
 # State Management
 # -------------------------------
 def save_state(state):
+    """Saves the current game state to a JSON file."""
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
 
 def load_state():
+    """Loads the game state from a JSON file, creating a new one if it doesn't exist."""
     if not os.path.exists(STATE_FILE):
         return {
             "game_started": False,
@@ -91,6 +93,7 @@ def load_state():
     return state
 
 def init_state():
+    """Initializes the game state by loading it and saving it back immediately."""
     state = load_state()
     save_state(state)
 
@@ -98,6 +101,7 @@ def init_state():
 # Question Generator
 # -------------------------------
 def get_ai_questions():
+    """Generates AI quiz questions using Gemini or falls back to a default set."""
     prompt = """
     Create 15 multiple-choice quiz questions about Data Literacy and AI Agents.
     Provide them as a JSON list with keys: question, options, answer.
@@ -270,7 +274,7 @@ if mode == "Player":
                 found = True
         if not found:
             state["scores"].append({"name": st.session_state.player_name,
-                                    "score": POINTS_PER_QUESTION if correct else 0})
+                                     "score": POINTS_PER_QUESTION if correct else 0})
 
         save_state(state)
 
@@ -279,4 +283,4 @@ if mode == "Player":
         if st.session_state.selected_answer == q["answer"]:
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
         else:
-            st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
+            st.error(f"Incorrect ❌.")
