@@ -52,7 +52,7 @@ def save_state(state):
 
 def load_state():
     if not os.path.exists(STATE_FILE):
-        state = {
+        return {
             "game_started": False,
             "current_question": 0,
             "scores": [],
@@ -61,14 +61,10 @@ def load_state():
             "questions": [],
             "host_question_start": time.time()
         }
-        save_state(state)
-        return state
-
     try:
         with open(STATE_FILE, "r") as f:
             state = json.load(f)
     except (json.JSONDecodeError, FileNotFoundError):
-        # Reset corrupted state
         state = {
             "game_started": False,
             "current_question": 0,
@@ -80,7 +76,6 @@ def load_state():
         }
         save_state(state)
 
-    # Ensure all keys exist
     defaults = {
         "game_started": False,
         "current_question": 0,
@@ -116,15 +111,10 @@ def get_ai_questions():
         return FALLBACK_QUESTIONS
 
 # -------------------------------
-# Auto-refresh every 1 sec
+# Auto-refresh
 # -------------------------------
 st_autorefresh(interval=1000, limit=None, key="quiz_autorefresh")
 init_state()
-state = load_state()
-
-if not state["questions"]:
-    state["questions"] = get_ai_questions()
-    save_state(state)
 
 # -------------------------------
 # Mode Selection
@@ -205,21 +195,23 @@ if mode == "Host":
 if mode == "Player":
     st.title("🎮 Quiz Game Player")
 
-    # Enter name
     if "player_name" not in st.session_state:
         st.session_state.player_name = ""
+
     if not st.session_state.player_name:
         st.session_state.player_name = st.text_input("Enter your first name:")
+
+    if not st.session_state.player_name:
         st.stop()
-    st.write(f"Welcome, **{st.session_state.player_name}**!")
 
-    # Reload state every refresh
+    # Load state and register player first
     state = load_state()
-
-    # Register player safely
     if st.session_state.player_name not in state["players"]:
         state["players"][st.session_state.player_name] = 0
         save_state(state)
+
+    # Reload state after registration
+    state = load_state()
 
     if not state["game_started"]:
         st.warning("⏳ Waiting for host to start the game...")
@@ -248,10 +240,11 @@ if mode == "Player":
     if "selected_answer" not in st.session_state:
         st.session_state.selected_answer = None
 
-    # Get current question
+    questions = state["questions"]
     q_index = state["current_question"]
-    q = state["questions"][q_index]
+    q = questions[q_index]
 
+    # Display question
     st.markdown(f"**Question {q_index+1}: {q['question']}**")
 
     # Countdown timer synced with host
@@ -266,19 +259,16 @@ if mode == "Player":
         st.session_state.answered = True
         correct = st.session_state.selected_answer == q["answer"]
 
-        # Update score safely
-        updated = False
+        # Update score
+        found = False
         for s in state["scores"]:
             if s["name"] == st.session_state.player_name:
                 if correct:
                     s["score"] += POINTS_PER_QUESTION
-                updated = True
-                break
-        if not updated:
-            state["scores"].append({
-                "name": st.session_state.player_name,
-                "score": POINTS_PER_QUESTION if correct else 0
-            })
+                found = True
+        if not found:
+            state["scores"].append({"name": st.session_state.player_name,
+                                    "score": POINTS_PER_QUESTION if correct else 0})
         save_state(state)
 
     # Show result only after Submit
