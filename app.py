@@ -271,4 +271,4 @@ if mode == "Player":
         if st.session_state.selected_answer == q["answer"]:
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
         else:
-            st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
+            st.error(f"Incorrect ❌.")
