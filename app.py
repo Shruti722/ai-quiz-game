@@ -16,7 +16,7 @@ POINTS_PER_QUESTION = 5
 # -------------------------------
 # Configure Gemini API
 # -------------------------------
-genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y api")  # replace with your API key
+genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")  # replace with your Gemini API key
 
 # -------------------------------
 # Initialize state.json if not exists
@@ -35,7 +35,7 @@ def save_state(state):
         json.dump(state, f)
 
 # -------------------------------
-# Fallback static questions (7)
+# Fallback static questions (15)
 # -------------------------------
 fallback_questions = [
     {"question": "Which of the following best describes structured data?",
@@ -59,6 +59,30 @@ fallback_questions = [
     {"question": "Fun fact: Which AI agent is known for beating human champions in Go?",
      "options": ["DeepBlue", "AlphaGo", "Watson", "GPT-3"],
      "answer": "AlphaGo"},
+    {"question": "Which measure of central tendency represents the middle value in ordered data?",
+     "options": ["Mean", "Median", "Mode", "Variance"],
+     "answer": "Median"},
+    {"question": "Which descriptive statistic measures the spread of data?",
+     "options": ["Mean", "Median", "Variance", "Mode"],
+     "answer": "Variance"},
+    {"question": "Which of these is considered unstructured data?",
+     "options": ["Customer reviews text", "Sales database", "Spreadsheets", "SQL tables"],
+     "answer": "Customer reviews text"},
+    {"question": "Which component is essential for an AI agent to interact with its environment?",
+     "options": ["Sensors and Actuators", "Printers", "Databases", "Word Processors"],
+     "answer": "Sensors and Actuators"},
+    {"question": "In data literacy, what does 'cleaning data' usually mean?",
+     "options": ["Encrypting data", "Removing errors and inconsistencies", "Sorting alphabetically", "Deleting records"],
+     "answer": "Removing errors and inconsistencies"},
+    {"question": "Which AI agent by IBM defeated Jeopardy! champions?",
+     "options": ["DeepBlue", "Watson", "AlphaGo", "Siri"],
+     "answer": "Watson"},
+    {"question": "Which of the following best describes categorical data?",
+     "options": ["Height in cm", "Temperature in °C", "Favorite color", "Age in years"],
+     "answer": "Favorite color"},
+    {"question": "Which AI agent technology powers digital assistants like Alexa and Siri?",
+     "options": ["Natural Language Processing", "Spreadsheet formulas", "Encryption algorithms", "Database queries"],
+     "answer": "Natural Language Processing"},
 ]
 
 # -------------------------------
@@ -66,22 +90,17 @@ fallback_questions = [
 # -------------------------------
 def get_ai_questions():
     prompt = """
-    Create 7 multiple-choice quiz questions about Data Literacy and AI Agents.
+    Create 15 multiple-choice quiz questions about Data Literacy and AI Agents.
+    Include at least 2 questions about descriptive statistics.
     Provide them as a JSON list with keys: question, options, answer.
-    Example:
-    [
-      {"question": "What is structured data?", 
-       "options": ["Images", "Tables with rows/columns", "Videos", "Audio"], 
-       "answer": "Tables with rows/columns"}
-    ]
     """
     try:
-        model = genai.GenerativeModel("gemini-1.5-turbo")  # faster variant
+        model = genai.GenerativeModel("gemini-1.5-turbo")
         response = model.generate_content(prompt)
         questions = json.loads(response.text)
         return questions
     except Exception:
-        return fallback_questions  # fallback to static questions immediately
+        return fallback_questions  # fallback to static 15 questions
 
 # -------------------------------
 # Auto-refresh every 1 sec
@@ -117,7 +136,7 @@ if mode == "Host":
 
     if not state["game_started"]:
         if st.button("Start Game"):
-            state["questions"] = get_ai_questions()  # use all generated/fallback questions
+            state["questions"] = get_ai_questions()  # use all 15
             state["game_started"] = True
             state["current_question"] = 0
             state["game_over"] = False
@@ -187,7 +206,7 @@ if mode == "Player":
         st.stop()
 
     # Initialize session state for question
-    if "start_time" not in st.session_state or st.session_state.start_time is None:
+    if "start_time" not in st.session_state:
         st.session_state.start_time = time.time()
     if "answered" not in st.session_state:
         st.session_state.answered = False
@@ -205,13 +224,12 @@ if mode == "Player":
     st.session_state.selected_answer = st.radio(
         "Choose your answer:",
         q["options"],
-        key=f"q{q_index}",
-        index=0
+        key=f"q{q_index}"
     )
     st.write(f"⏳ Time left: {remaining} sec")
 
     # Submit answer
-    if st.button("Submit") and not st.session_state.answered:
+    if st.button("Submit", key=f"submit{q_index}") and not st.session_state.answered:
         st.session_state.answered = True
         state = load_state()
         correct = st.session_state.selected_answer == q["answer"]
