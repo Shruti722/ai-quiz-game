@@ -13,7 +13,7 @@ import google.generativeai as genai
 # -------------------------------
 STATE_FILE = "state.json"
 GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=Player"  # Update to your deployed URL
-QUESTION_TIME = 15
+QUESTION_TIME = 25
 POINTS_PER_QUESTION = 5
 
 # -------------------------------
