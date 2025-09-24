@@ -28,9 +28,9 @@ AUTO_REFRESH_INTERVAL = 1000  # milliseconds
 # —————————––
 
 st.set_page_config(
-page_title=“AI Quiz Game”,
-page_icon=“🎮”,
-layout=“wide”
+page_title="AI Quiz Game",
+page_icon="🎮",
+layout="wide"
 )
 
 # —————————––
@@ -39,9 +39,9 @@ layout=“wide”
 
 # —————————––
 
-GEMINI_API_KEY = st.secrets.get(“GEMINI_API_KEY”, “AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y”)
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")
 genai.configure(api_key=GEMINI_API_KEY)
-MODEL_NAME = “gemini-1.5-flash”  # Using flash for faster response
+MODEL_NAME = "gemini-1.5-flash"  # Using flash for faster response
 
 # —————————––
 
@@ -50,16 +50,16 @@ MODEL_NAME = “gemini-1.5-flash”  # Using flash for faster response
 # —————————––
 
 FALLBACK_QUESTIONS = [
-{“question”: “What does the standard deviation measure?”, “options”: [“The central value of data”,“The spread of data around the mean”,“The most common value”,“The difference between max and min”], “answer”: “The spread of data around the mean”},
-{“question”: “Which company built AlphaGo, the AI agent that beat a Go world champion?”, “options”: [“OpenAI”,“DeepMind”,“IBM”,“Microsoft”], “answer”: “DeepMind”},
-{“question”: “Which measure of central tendency is most affected by extreme values?”, “options”: [“Mean”,“Median”,“Mode”,“Range”], “answer”: “Mean”},
-{“question”: “Which of these best describes ‘data literacy’?”, “options”: [“Ability to read and work with data”,“Ability to code”,“Ability to memorize statistics”,“Ability to create charts only”], “answer”: “Ability to read and work with data”},
-{“question”: “What is a ‘multi-agent system’?”, “options”: [“AI working in isolation”,“Multiple AI agents interacting”,“Humans and AI working together”,“One AI agent with multiple tasks”], “answer”: “Multiple AI agents interacting”},
-{“question”: “Which famous AI agent defeated Garry Kasparov in chess?”, “options”: [“AlphaGo”,“Siri”,“Deep Blue”,“Watson”], “answer”: “Deep Blue”},
-{“question”: “What is the primary purpose of data visualization?”, “options”: [“To make data look pretty”,“To identify patterns and insights”,“To store data”,“To clean data”], “answer”: “To identify patterns and insights”},
-{“question”: “Which AI agent famously won Jeopardy! against human champions?”, “options”: [“Siri”,“Watson”,“Alexa”,“BERT”], “answer”: “Watson”},
-{“question”: “Which of these is an example of a reactive AI agent?”, “options”: [“Chess AI”,“Personal Assistant”,“Self-driving car”,“Spam filter”], “answer”: “Spam filter”},
-{“question”: “What does a histogram show?”, “options”: [“Trends over time”,“Distribution of data”,“Relationship between variables”,“Averages only”], “answer”: “Distribution of data”},
+{"question": "What does the standard deviation measure?", "options": ["The central value of data","The spread of data around the mean","The most common value","The difference between max and min"], "answer": "The spread of data around the mean"},
+{"question": "Which company built AlphaGo, the AI agent that beat a Go world champion?", "options": ["OpenAI","DeepMind","IBM","Microsoft"], "answer": "DeepMind"},
+{"question": "Which measure of central tendency is most affected by extreme values?", "options": ["Mean","Median","Mode","Range"], "answer": "Mean"},
+{"question": "Which of these best describes ‘data literacy’?", "options": ["Ability to read and work with data","Ability to code","Ability to memorize statistics","Ability to create charts only"], "answer": "Ability to read and work with data"},
+{"question": "What is a ‘multi-agent system’?", "options": ["AI working in isolation","Multiple AI agents interacting","Humans and AI working together","One AI agent with multiple tasks"], "answer": "Multiple AI agents interacting"},
+{"question": "Which famous AI agent defeated Garry Kasparov in chess?", "options": ["AlphaGo","Siri","Deep Blue","Watson"], "answer": "Deep Blue"},
+{"question": "What is the primary purpose of data visualization?", "options": ["To make data look pretty","To identify patterns and insights","To store data","To clean data"], "answer": "To identify patterns and insights"},
+{"question": "Which AI agent famously won Jeopardy! against human champions?", "options": ["Siri","Watson","Alexa","BERT"], "answer": "Watson"},
+{"question": "Which of these is an example of a reactive AI agent?", "options": ["Chess AI","Personal Assistant","Self-driving car","Spam filter"], "answer": "Spam filter"},
+{"question": "What does a histogram show?", "options": ["Trends over time","Distribution of data","Relationship between variables","Averages only"], "answer": "Distribution of data"},
 ]
 
 # —————————––
@@ -69,35 +69,35 @@ FALLBACK_QUESTIONS = [
 # —————————––
 
 def get_default_state():
-“”“Returns the default state structure”””
+"""Returns the default state structure"""
 return {
-“game_started”: False,
-“current_question”: 0,
-“scores”: [],
-“game_over”: False,
-“players”: {},
-“questions”: [],
-“host_question_start”: time.time(),
-“last_updated”: time.time(),
-“game_id”: datetime.now().strftime(”%Y%m%d_%H%M%S”)
+"game_started": False,
+"current_question": 0,
+"scores": [],
+"game_over": False,
+"players": {},
+"questions": [],
+"host_question_start": time.time(),
+"last_updated": time.time(),
+"game_id": datetime.now().strftime("%Y%m%d_%H%M%S")
 }
 
 def save_state(state):
-“”“Save state with error handling”””
+"""Save state with error handling"""
 try:
-state[“last_updated”] = time.time()
-temp_file = STATE_FILE + “.tmp”
-with open(temp_file, “w”) as f:
+state["last_updated"] = time.time()
+temp_file = STATE_FILE + ".tmp"
+with open(temp_file, "w") as f:
 json.dump(state, f, indent=2)
 # Atomic rename to avoid corruption
 os.replace(temp_file, STATE_FILE)
 return True
 except Exception as e:
-st.error(f”Error saving state: {e}”)
+st.error(f"Error saving state: {e}")
 return False
 
 def load_state():
-“”“Load state with comprehensive error handling”””
+"""Load state with comprehensive error handling"""
 if not os.path.exists(STATE_FILE):
 state = get_default_state()
 save_state(state)
@@ -126,9 +126,9 @@ except Exception as e:
 ```
 
 def reset_game():
-“”“Complete game reset”””
+"""Complete game reset"""
 state = get_default_state()
-state[“questions”] = get_ai_questions()
+state["questions"] = get_ai_questions()
 save_state(state)
 return state
 
@@ -140,8 +140,8 @@ return state
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def get_ai_questions():
-“”“Generate questions using Gemini AI with fallback”””
-prompt = “””
+"""Generate questions using Gemini AI with fallback"""
+prompt = """
 Create exactly 10 multiple-choice quiz questions about Data Literacy and AI Agents.
 Mix basic and intermediate difficulty levels.
 
@@ -200,8 +200,8 @@ except Exception as e:
 # —————————––
 
 def auto_refresh():
-“”“Custom auto-refresh implementation”””
-if “last_refresh” not in st.session_state:
+"""Custom auto-refresh implementation"""
+if "last_refresh" not in st.session_state:
 st.session_state.last_refresh = time.time()
 
 ```
@@ -213,7 +213,7 @@ if current_time - st.session_state.last_refresh > 1:  # Refresh every second
 
 # Add JavaScript for auto-refresh (backup method)
 
-auto_refresh_script = “””
+auto_refresh_script = """
 
 <script>
 setTimeout(function(){
@@ -221,7 +221,7 @@ setTimeout(function(){
 }, 1000);
 </script>
 
-“””
+"""
 
 # —————————––
 
@@ -229,9 +229,9 @@ setTimeout(function(){
 
 # —————————––
 
-if “initialized” not in st.session_state:
+if "initialized" not in st.session_state:
 st.session_state.initialized = True
-st.session_state.player_name = “”
+st.session_state.player_name = ""
 st.session_state.answered = False
 st.session_state.selected_answer = None
 st.session_state.last_question_index = -1
@@ -243,9 +243,9 @@ state = load_state()
 
 # Generate questions if needed
 
-if not state[“questions”]:
-with st.spinner(“Generating quiz questions…”):
-state[“questions”] = get_ai_questions()
+if not state["questions"]:
+with st.spinner("Generating quiz questions…"):
+state["questions"] = get_ai_questions()
 save_state(state)
 
 # —————————––
@@ -255,15 +255,15 @@ save_state(state)
 # —————————––
 
 params = st.query_params
-role = params.get(“role”, “Host”)
+role = params.get("role", "Host")
 
 with st.sidebar:
-st.title(“🎮 Quiz Game Settings”)
+st.title("🎮 Quiz Game Settings")
 mode = st.selectbox(
-“Select mode:”,
-[“Host”, “Player”],
-index=0 if role == “Host” else 1,
-key=“mode_selector”
+"Select mode:",
+["Host", "Player"],
+index=0 if role == "Host" else 1,
+key="mode_selector"
 )
 
 ```
@@ -279,8 +279,8 @@ st.caption(f"Time per question: {QUESTION_TIME}s")
 
 # —————————––
 
-if mode == “Host”:
-st.title(“🎮 AI Quiz Game - Host Console”)
+if mode == "Host":
+st.title("🎮 AI Quiz Game - Host Console")
 
 ```
 col1, col2, col3 = st.columns([1, 2, 1])
@@ -399,8 +399,8 @@ st.markdown(auto_refresh_script, unsafe_allow_html=True)
 
 # —————————––
 
-elif mode == “Player”:
-st.title(“🎮 AI Quiz Game - Player”)
+elif mode == "Player":
+st.title("🎮 AI Quiz Game - Player")
 
 ```
 # Player name entry
@@ -548,4 +548,4 @@ else:
 # Footer
 
 st.divider()
-st.caption(“🎮 AI Quiz Game - Built with Streamlit”)
+st.caption("🎮 AI Quiz Game - Built with Streamlit")
