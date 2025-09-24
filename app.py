@@ -134,65 +134,14 @@ if mode == "Host":
     st.markdown(f"[👉 Click here to join as Player]({GAME_URL})")
 
     state = load_state()
-    st.write(f"Players joined: {len(state['players'])}")
+
+    # Only count players who have a valid name
+    real_players = [name for name in state["players"] if name.strip() != ""]
+    st.write(f"Players joined: {len(real_players)}")
 
     if not state["questions"]:
         state["questions"] = get_ai_questions()
         save_state(state)
-
-    # --- Show final leaderboard if game ended ---
-    if state["game_over"]:
-        st.success("🎉 Game Over! Final Leaderboard:")
-        if state["scores"]:
-            df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False)
-            df.insert(0, "Rank", range(1, len(df)+1))
-            st.table(df[["Rank","name","score"]])
-        st.stop()
-
-    if not state["game_started"]:
-        if st.button("🚀 Start Game"):
-            state = load_state()
-            if not state["questions"]:
-                state["questions"] = get_ai_questions()
-            state["game_started"] = True
-            state["current_question"] = 0
-            state["game_over"] = False
-            state["scores"] = []
-            state["host_question_start"] = time.time()
-            save_state(state)
-            st.success("Game started!")
-
-    if st.button("🔄 Restart Game"):
-        state = {
-            "game_started": False,
-            "current_question": 0,
-            "scores": [],
-            "game_over": False,
-            "players": {},
-            "questions": FALLBACK_QUESTIONS.copy(),
-            "host_question_start": time.time()
-        }
-        save_state(state)
-        st.experimental_rerun()
-
-    # Progress game
-    state = load_state()
-    if state["game_started"] and not state["game_over"]:
-        elapsed = int(time.time() - state["host_question_start"])
-        if elapsed >= QUESTION_TIME:
-            if state["current_question"] < len(state["questions"]) - 1:
-                state["current_question"] += 1
-                state["host_question_start"] = time.time()
-            else:
-                state["game_over"] = True
-            save_state(state)
-
-        st.write(f"Game in progress... Question {state['current_question']+1}/{len(state['questions'])}")
-        if state["scores"]:
-            df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False).head(5)
-            df.insert(0, "Rank", range(1, len(df)+1))
-            st.subheader("🏆 Leaderboard - Top 5")
-            st.table(df[["Rank","name","score"]])
 
 # -------------------------------
 # PLAYER
