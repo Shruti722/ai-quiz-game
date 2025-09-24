@@ -15,8 +15,8 @@ import traceback
 
 # —————————––
 
-STATE_FILE = “state.json”
-GAME_URL = “https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=Player”
+STATE_FILE = "state.json"
+GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=Player"
 QUESTION_TIME = 20
 POINTS_PER_QUESTION = 5
 AUTO_REFRESH_INTERVAL = 1000  # milliseconds
