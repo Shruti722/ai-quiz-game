@@ -13,7 +13,7 @@ import google.generativeai as genai
 # -------------------------------
 STATE_FILE = "state.json"
 GAME_URL = "https://ai-quiz-game-vuwsfb3hebgvdstjtewksd.streamlit.app/?role=Player"
-QUESTION_TIME = 15
+QUESTION_TIME = 18
 POINTS_PER_QUESTION = 5
 
 # -------------------------------
