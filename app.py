@@ -23,7 +23,7 @@ genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")  # Replace wi
 MODEL_NAME = "gemini-1.5-turbo"
 
 # -------------------------------
-# Fallback Questions (15 total)
+# Fallback Questions
 # -------------------------------
 FALLBACK_QUESTIONS = [
     {"question": "What does the standard deviation measure?", "options": ["The central value of data","The spread of data around the mean","The most common value","The difference between max and min"], "answer": "The spread of data around the mean"},
@@ -163,8 +163,6 @@ if mode == "Host":
     # Advance question based on timer
     if state["game_started"] and not state["game_over"]:
         elapsed = int(time.time() - state["host_question_start"])
-        remaining = max(0, QUESTION_TIME - elapsed)
-
         if elapsed >= QUESTION_TIME:
             if state["current_question"] < len(state["questions"]) - 1:
                 state["current_question"] += 1
@@ -235,10 +233,14 @@ if mode == "Player":
     q_index = state["current_question"]
     q = questions[q_index]
 
+    # Display question
+    st.markdown(f"**Question {q_index+1}: {q['question']}**")
+
     # Countdown timer synced with host
     remaining = max(0, QUESTION_TIME - int(time.time() - state.get("host_question_start", time.time())))
     st.write(f"⏳ Time left for this question: {remaining} sec")
 
+    # Options
     st.session_state.selected_answer = st.radio("Choose your answer:", q["options"], key=f"q{q_index}")
 
     # Submit answer
@@ -262,4 +264,3 @@ if mode == "Player":
             st.success(f"Correct! ✅ (+{POINTS_PER_QUESTION} points)")
         else:
             st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
-
