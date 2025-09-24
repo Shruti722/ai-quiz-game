@@ -118,81 +118,78 @@ role = params.get("role", ["Host"])[0]
 mode = st.sidebar.selectbox("Select mode:", ["Host", "Player"], index=0 if role.lower() == "host" else 1)
 
 # -------------------------------
-# HOST
+# Host Screen
 # -------------------------------
 if mode == "Host":
-    st.title("🎮 Quiz Game Host")
-    st.write("📱 Players scan the QR code or click the link below to join:")
-
-    qr = qrcode.QRCode(version=1, box_size=8, border=2)
-    qr.add_data(GAME_URL)
-    qr.make(fit=True)
-    img = qr.make_image(fill='black', back_color='white')
-    buf = BytesIO()
-    img.save(buf)
-    st.image(buf, width=200)
-    st.markdown(f"[👉 Click here to join as Player]({GAME_URL})")
+    st.title("📢 Quiz Game Host")
 
     state = load_state()
-    st.write(f"Players joined: {len(state['players'])}")
 
-    if not state["questions"]:
-        state["questions"] = get_ai_questions()
-        save_state(state)
-
-    # --- Show final leaderboard if game ended ---
+    # If game over -> show leaderboard + play again button
     if state["game_over"]:
-        st.success("🎉 Game Over! Final Leaderboard:")
+        st.success("🎉 Game Over! Final Leaderboard")
         if state["scores"]:
             df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False)
             df.insert(0, "Rank", range(1, len(df)+1))
+            st.subheader("🏆 Final Leaderboard")
             st.table(df[["Rank","name","score"]])
+
+        # --- Play Again Button ---
+        if st.button("🔄 Play Again"):
+            new_state = {
+                "players": {},
+                "scores": [],
+                "current_question": 0,
+                "game_started": False,
+                "game_over": False,
+                "questions": state["questions"],  # reuse same questions
+                "host_question_start": None
+            }
+            save_state(new_state)
+            st.experimental_rerun()
+
         st.stop()
 
+    # Show number of players
+    st.write(f"Players joined: {len(state['players'])}")
+
+    # Start button
     if not state["game_started"]:
-        if st.button("🚀 Start Game"):
-            state = load_state()
-            if not state["questions"]:
-                state["questions"] = get_ai_questions()
+        if st.button("▶️ Start Game"):
             state["game_started"] = True
             state["current_question"] = 0
-            state["game_over"] = False
-            state["scores"] = []
             state["host_question_start"] = time.time()
             save_state(state)
-            st.success("Game started!")
+            st.experimental_rerun()
+        st.stop()
 
-    if st.button("🔄 Restart Game"):
-        state = {
-            "game_started": False,
-            "current_question": 0,
-            "scores": [],
-            "game_over": False,
-            "players": {},
-            "questions": FALLBACK_QUESTIONS.copy(),
-            "host_question_start": time.time()
-        }
-        save_state(state)
-        st.success("Game has been reset! Players can rejoin.")
+    # Ongoing questions
+    questions = state["questions"]
+    q_index = state["current_question"]
 
-    # Progress game
-    state = load_state()
-    if state["game_started"]:
-        elapsed = int(time.time() - state["host_question_start"])
-        if elapsed >= QUESTION_TIME:
-            if state["current_question"] < len(state["questions"]) - 1:
+    if q_index < len(questions):
+        q = questions[q_index]
+        st.markdown(f"**Question {q_index+1}: {q['question']}**")
+
+        remaining = max(0, QUESTION_TIME - int(time.time() - state.get("host_question_start", time.time())))
+        st.write(f"⏳ Time left: {remaining} sec")
+
+        if remaining == 0:
+            if st.button("⏭️ Next Question"):
                 state["current_question"] += 1
-                state["host_question_start"] = time.time()
-            else:
-                state["game_over"] = True
-            save_state(state)
+                if state["current_question"] >= len(questions):
+                    state["game_over"] = True
+                else:
+                    state["host_question_start"] = time.time()
+                save_state(state)
+                st.experimental_rerun()
 
-        st.write(f"Game in progress... Question {state['current_question']+1}/{len(state['questions'])}")
-        if state["scores"]:
-            df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False).head(5)
-            df.insert(0, "Rank", range(1, len(df)+1))
-            st.subheader("🏆 Leaderboard - Top 5")
-            st.table(df[["Rank","name","score"]])
+    else:
+        # Mark game over if out of questions
+        state["game_over"] = True
+        save_state(state)
+        st.experimental_rerun()
+
 
 # -------------------------------
 # PLAYER
