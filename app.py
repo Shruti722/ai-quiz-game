@@ -23,7 +23,7 @@ genai.configure(api_key="AIzaSyAUd8_UuRowt-QmJBESIBTEXC8dnSDWk_Y")  # Replace wi
 MODEL_NAME = "gemini-1.5-turbo"
 
 # -------------------------------
-# Fallback Questions
+# Fallback Questions (15 total)
 # -------------------------------
 FALLBACK_QUESTIONS = [
     {"question": "What does the standard deviation measure?", "options": ["The central value of data","The spread of data around the mean","The most common value","The difference between max and min"], "answer": "The spread of data around the mean"},
@@ -64,8 +64,14 @@ def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
 
+# -------------------------------
+# Question Generator
+# -------------------------------
 def get_ai_questions():
-    prompt = "Create 15 multiple-choice quiz questions about Data Literacy and AI Agents as JSON list with keys: question, options, answer."
+    prompt = """
+    Create 15 multiple-choice quiz questions about Data Literacy and AI Agents.
+    Provide them as a JSON list with keys: question, options, answer.
+    """
     try:
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(prompt)
@@ -75,7 +81,7 @@ def get_ai_questions():
         return FALLBACK_QUESTIONS
 
 # -------------------------------
-# Auto-refresh
+# Auto-refresh every 1 sec
 # -------------------------------
 st_autorefresh(interval=1000, limit=None, key="quiz_autorefresh")
 init_state()
@@ -86,18 +92,18 @@ if not state["questions"]:
     save_state(state)
 
 # -------------------------------
-# Mode selection
+# Mode Selection
 # -------------------------------
 params = st.query_params
 role = params.get("role", ["Host"])[0]
-mode = st.sidebar.selectbox("Select mode:", ["Host","Player"], index=0 if role.lower()=="host" else 1)
+mode = st.sidebar.selectbox("Select mode:", ["Host", "Player"], index=0 if role.lower() == "host" else 1)
 
 # -------------------------------
-# Host screen
+# Host Screen
 # -------------------------------
-if mode=="Host":
+if mode == "Host":
     st.title("🎮 Quiz Game Host")
-    st.write("📱 Players scan the QR code or click below:")
+    st.write("📱 Players scan the QR code or click the link below to join:")
 
     qr = qrcode.QRCode(version=1, box_size=8, border=2)
     qr.add_data(GAME_URL)
@@ -106,42 +112,43 @@ if mode=="Host":
     buf = BytesIO()
     img.save(buf)
     st.image(buf, width=200)
-    st.markdown(f"[👉 Click to join as Player]({GAME_URL})")
+    st.markdown(f"[👉 Click here to join as Player]({GAME_URL})")
 
     state = load_state()
     st.write(f"Players joined: {len(state['players'])}")
 
-    if not state["game_started"] and st.button("🚀 Start Game"):
-        state["game_started"] = True
-        state["current_question"] = 0
-        state["game_over"] = False
-        save_state(state)
-        st.success("Game started!")
+    if not state["game_started"]:
+        if st.button("🚀 Start Game"):
+            state["game_started"] = True
+            state["current_question"] = 0
+            state["game_over"] = False
+            save_state(state)
+            st.success("Game started!")
 
     if st.button("🔄 Restart Game"):
-        state = {"game_started": False, "current_question":0, "scores": [], "game_over": False, "players": {}, "questions": state["questions"]}
+        state = {"game_started": False, "current_question": 0, "scores": [], "game_over": False, "players": {}, "questions": state["questions"]}
         save_state(state)
-        st.success("Game reset! Players can rejoin.")
+        st.success("Game has been reset! Players can rejoin.")
 
     if state["game_started"]:
         if state["game_over"]:
             st.success("🎉 Game Over! Final Leaderboard:")
             if state["scores"]:
-                df = pd.DataFrame(state["scores"]).sort_values("score", ascending=False)
-                df.insert(0,"Rank",range(1,len(df)+1))
+                df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False)
+                df.insert(0, "Rank", range(1, len(df)+1))
                 st.table(df[["Rank","name","score"]])
         else:
             st.write(f"Game in progress... Question {state['current_question']+1}/{len(state['questions'])}")
             if state["scores"]:
-                df = pd.DataFrame(state["scores"]).sort_values("score", ascending=False).head(3)
-                df.insert(0,"Rank",range(1,len(df)+1))
+                df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False).head(3)
+                df.insert(0, "Rank", range(1, len(df)+1))
                 st.subheader("🏆 Leaderboard - Top 3")
                 st.table(df[["Rank","name","score"]])
 
 # -------------------------------
-# Player screen
+# Player Screen
 # -------------------------------
-if mode=="Player":
+if mode == "Player":
     st.title("🎮 Quiz Game Player")
 
     if "player_name" not in st.session_state:
@@ -156,22 +163,26 @@ if mode=="Player":
     st.write(f"Welcome, **{st.session_state.player_name}**!")
 
     state = load_state()
+
+    # Register player
     if st.session_state.player_name not in state["players"]:
         state["players"][st.session_state.player_name] = 0
         save_state(state)
 
     if not state["game_started"]:
-        st.warning("⏳ Waiting for host...")
+        st.warning("⏳ Waiting for host to start the game...")
         st.stop()
+
     if state["game_over"]:
-        st.success("🎉 Game Over!")
+        st.success("🎉 Game Over! Thank you for playing.")
         if state["scores"]:
-            df = pd.DataFrame(state["scores"]).sort_values("score", ascending=False)
-            df.insert(0,"Rank",range(1,len(df)+1))
+            df = pd.DataFrame(state["scores"]).sort_values(by="score", ascending=False)
+            df.insert(0, "Rank", range(1, len(df)+1))
+            st.subheader("🏆 Final Leaderboard")
             st.table(df[["Rank","name","score"]])
         st.stop()
 
-    # --- session state ---
+    # Initialize session state
     if "start_time" not in st.session_state:
         st.session_state.start_time = time.time()
     if "answered" not in st.session_state:
@@ -180,8 +191,6 @@ if mode=="Player":
         st.session_state.selected_answer = None
     if "question_advanced" not in st.session_state:
         st.session_state.question_advanced = False
-    if "last_question_time" not in st.session_state:
-        st.session_state.last_question_time = 0  # Track last advancement
 
     questions = state["questions"]
     q_index = state["current_question"]
@@ -194,13 +203,15 @@ if mode=="Player":
     st.session_state.selected_answer = st.radio("Choose your answer:", q["options"], key=f"q{q_index}")
     st.write(f"⏳ Time left: {remaining} sec")
 
+    # Submit answer
     if st.button("Submit") and not st.session_state.answered:
         st.session_state.answered = True
         correct = st.session_state.selected_answer == q["answer"]
         found = False
         for s in state["scores"]:
             if s["name"] == st.session_state.player_name:
-                if correct: s["score"] += POINTS_PER_QUESTION
+                if correct:
+                    s["score"] += POINTS_PER_QUESTION
                 found = True
         if not found:
             state["scores"].append({"name": st.session_state.player_name, "score": POINTS_PER_QUESTION if correct else 0})
@@ -212,17 +223,21 @@ if mode=="Player":
         else:
             st.error(f"Incorrect ❌. Correct answer: {q['answer']}")
 
-    # --- Move to next question safely ---
-    if elapsed >= QUESTION_TIME and st.session_state.last_question_time != q_index:
+    # -------------------------------
+    # Move to next question after timer ends
+    # -------------------------------
+    if elapsed >= QUESTION_TIME and not st.session_state.question_advanced:
         state = load_state()
-        if state["current_question"] < len(questions)-1:
+        if state["current_question"] < len(questions) - 1:
             state["current_question"] += 1
         else:
             state["game_over"] = True
         save_state(state)
 
-        # Reset for next question
+        # Reset session state for next question
         st.session_state.start_time = time.time()
         st.session_state.selected_answer = None
         st.session_state.answered = False
-        st.session_state.last_question_time = q_index  # mark as advanced
+        st.session_state.question_advanced = True
+    elif elapsed < QUESTION_TIME:
+        st.session_state.question_advanced = False
